@@ -2,8 +2,9 @@
 
 **Windows 10 (2017–2018) 风格 Fluent Design，纯 Win32 + Direct2D 手搓。**
 
-零第三方依赖、零 NuGet、零附带 DLL——一个单文件 `main.cpp` + 预编译头，
-产物是**单个 exe**（静态链接 CRT，约几百 KB），目标机无需安装任何运行时。
+零第三方依赖、零 NuGet、零附带 DLL——分层多文件结构（Utils / Platform / Theme /
+Rendering / UI / Core），产物是**单个 exe**（静态链接 CRT，约几百 KB），
+目标机无需安装任何运行时。
 
 > 对比：同样效果的 WinUI 3 自包含应用约 **24 MB（zip）/ 60 MB（解压）**。
 > 那些字节全部花在了 XAML 框架本体上，没有一字节花在"画图"。
@@ -14,9 +15,8 @@
 |---|---|
 | 窗口 / 消息 | Win32 (`user32`) |
 | Acrylic 模糊 | DWM `DwmEnableBlurBehindWindow`（Win10 1607+ 经典实现） |
-| 独立合成层 | DirectComposition |
-| 2D 绘制 | Direct2D 1.1（flip swap chain + `ID2D1DeviceContext`） |
-| 文本 / 图标 | DirectWrite（Segoe UI / Segoe UI Semibold / Segoe MDL2 Assets） |
+| 2D 绘制 | Direct2D 1.0 `HwndRenderTarget`（`WS_EX_NOREDIRECTIONBITMAP` 直连 DWM） |
+| 文本 / 图标 | DirectWrite（Segoe UI / Segoe MDL2 Assets / Consolas） |
 
 ## 演示的 Win10 Fluent 要素
 
@@ -44,30 +44,52 @@ Actions 页面 → `build` → **Run workflow**，产物在 Artifacts 里下载�
 > Release|x64 构建通过，产物 **FluentZero.exe = 162.5 KB**（单文件，零附带 DLL）。
 > 静态链接 CRT（`/MT`），Win10 1607+ / Win11 直接双击运行。
 
-## 代码结构（`main.cpp`，约 650 行）
+## 代码结构（分层架构，`src/`）
+
+6 层，自底向上单向依赖（上层可引用下层，反之不行）：
 
 ```
-fz::FluentTheme   调色板：浅/深主题 + 系统强调色（注册表读取）
-fz::Button        按钮状态机：hot / pressed + hoverT / pressT / revealT 动画进度
-fz::Renderer      渲染后端：DComp target + flip swap chain + D2D DeviceContext + DWrite
-fz::App           窗口、布局、输入命中检测、动画更新、消息循环
+src/
+├── Utils/        第 1 层 · 纯工具（无业务依赖）
+│   ├── MathUtils.h       FzMx/Fzmn/Clamp01/EaseOut（header-only）
+│   └── ColorUtils.{h,cpp} D2D1_COLOR_F：Premul/Brighten/FzCol/HexOf/FzRR
+├── Platform/     第 2 层 · OS 抽象（只依赖 Win32）
+│   └── SystemSettings.{h,cpp} ReadAccent/SystemPrefersLight/GetEffectiveDpi
+├── Theme/        第 3 层 · Fluent 主题（依赖 Utils + Platform）
+│   └── FluentTheme.{h,cpp}  浅/深调色板 + 系统强调色
+├── Rendering/    第 4 层 · 渲染后端（D2D1 + DirectWrite）
+│   └── Renderer.{h,cpp}     HwndRenderTarget 基类 + 文本绘制工具
+├── UI/           第 5 层 · UI 控件（依赖 Rendering + Theme + Utils）
+│   └── Button.{h,cpp}       Reveal 按钮：状态 + 动画 + 绘制 + 命中
+├── Core/         第 6 层 · 应用编排（依赖所有层）
+│   └── App.{h,cpp}          窗口 / 布局 / 输入 / 消息循环 / 动画调度
+└── main.cpp               入口 wWinMain
+```
+
+依赖方向（单向、无环）：
+
+```
+Core ──> UI ──> Rendering ──> Utils
+ │         │          │
+ └──> Theme <─────────┘
+        │
+        └──> Platform ──> (Win32)
 ```
 
 渲染管线：
 
 ```
-HWND（普通带标题栏窗口）
- └─ IDCompositionTarget（CreateTargetForHwnd）
-     └─ IDCompositionSurface（CreateSurface 包住 swap chain）
-         └─ DXGI flip swap chain（B8G8R8A8 预乘 alpha）
-             └─ ID2D1DeviceContext（DrawTextLayout / FillRoundedRectangle / ...）
+HWND（WS_EX_NOREDIRECTIONBITMAP，保留原生标题栏）
+ └─ DwmEnableBlurBehindWindow（Acrylic：模糊窗口后方内容）
+     └─ D2D1 HwndRenderTarget（B8G8R8A8 预乘 alpha）
+         └─ DrawTextLayout / FillRoundedRectangle / ...
 ```
 
 ## 渲染架构说明
 
-- 窗口使用普通 GDI 边框（保留原生标题栏/阴影/边框，这是 Win10 风格的一部分），
-  客户区由 DirectComposition 接管渲染，因此可以输出**半透明像素**——
-  半透明处 DWM 把窗口后方的模糊内容透出，形成 Acrylic。
+- 窗口保留原生 GDI 边框（标题栏/阴影/边框，这是 Win10 风格的一部分），
+  客户区设 `WS_EX_NOREDIRECTIONBITMAP` 由 D2D1 `HwndRenderTarget` 直接渲染，
+  因此可输出**半透明像素**——半透明处 DWM 把窗口后方的模糊内容透出，形成 Acrylic。
 - 空闲时 `WaitMessage()` 阻塞（零 CPU），仅在有动画时进入 16 ms 帧循环。
 
 ## 已知简化（demo 范围内有意为之）

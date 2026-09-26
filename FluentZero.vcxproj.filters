@@ -1,18 +1,44 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="源文件">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp</Extensions>
+    <Filter Include="src">
+      <UniqueIdentifier>{a0000000-0000-0000-0000-000000000001}</UniqueIdentifier>
     </Filter>
-    <Filter Include="头文件">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h</Extensions>
+    <Filter Include="src\Utils">
+      <UniqueIdentifier>{a0000000-0000-0000-0000-000000000002}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Platform">
+      <UniqueIdentifier>{a0000000-0000-0000-0000-000000000003}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Theme">
+      <UniqueIdentifier>{a0000000-0000-0000-0000-000000000004}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Rendering">
+      <UniqueIdentifier>{a0000000-0000-0000-0000-000000000005}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\UI">
+      <UniqueIdentifier>{a0000000-0000-0000-0000-000000000006}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Core">
+      <UniqueIdentifier>{a0000000-0000-0000-0000-000000000007}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp"><Filter>源文件</Filter></ClCompile>
-    <ClCompile Include="pch.cpp"><Filter>源文件</Filter></ClCompile>
-    <ClInclude Include="pch.h"><Filter>头文件</Filter></ClInclude>
+    <ClInclude Include="src\pch.h"><Filter>src</Filter></ClInclude>
+    <ClCompile Include="src\pch.cpp"><Filter>src</Filter></ClCompile>
+    <ClCompile Include="src\main.cpp"><Filter>src</Filter></ClCompile>
+    <ClInclude Include="src\Utils\MathUtils.h"><Filter>src\Utils</Filter></ClInclude>
+    <ClInclude Include="src\Utils\ColorUtils.h"><Filter>src\Utils</Filter></ClInclude>
+    <ClCompile Include="src\Utils\ColorUtils.cpp"><Filter>src\Utils</Filter></ClCompile>
+    <ClInclude Include="src\Platform\SystemSettings.h"><Filter>src\Platform</Filter></ClInclude>
+    <ClCompile Include="src\Platform\SystemSettings.cpp"><Filter>src\Platform</Filter></ClCompile>
+    <ClInclude Include="src\Theme\FluentTheme.h"><Filter>src\Theme</Filter></ClInclude>
+    <ClCompile Include="src\Theme\FluentTheme.cpp"><Filter>src\Theme</Filter></ClCompile>
+    <ClInclude Include="src\Rendering\Renderer.h"><Filter>src\Rendering</Filter></ClInclude>
+    <ClCompile Include="src\Rendering\Renderer.cpp"><Filter>src\Rendering</Filter></ClCompile>
+    <ClInclude Include="src\UI\Button.h"><Filter>src\UI</Filter></ClInclude>
+    <ClCompile Include="src\UI\Button.cpp"><Filter>src\UI</Filter></ClCompile>
+    <ClInclude Include="src\Core\App.h"><Filter>src\Core</Filter></ClInclude>
+    <ClCompile Include="src\Core\App.cpp"><Filter>src\Core</Filter></ClCompile>
   </ItemGroup>
 </Project>

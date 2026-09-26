@@ -37,6 +37,7 @@
       <PreprocessorDefinitions>NDEBUG;UNICODE;_UNICODE;WIN32_LEAN_AND_MEAN;NOMINMAX;_WIN32_WINNT=0x0A00;WINVER=0x0A00;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiByteCharacters>false</MultiByteCharacters>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <SubSystem>Windows</SubSystem>
@@ -49,11 +50,32 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="pch.h" />
-    <ClCompile Include="pch.cpp">
+    <!-- 预编译头 -->
+    <ClInclude Include="src\pch.h" />
+    <ClCompile Include="src\pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)'=='Release'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="main.cpp" />
+    <!-- 入口 -->
+    <ClCompile Include="src\main.cpp" />
+    <!-- Utils 层 -->
+    <ClInclude Include="src\Utils\MathUtils.h" />
+    <ClInclude Include="src\Utils\ColorUtils.h" />
+    <ClCompile Include="src\Utils\ColorUtils.cpp" />
+    <!-- Platform 层 -->
+    <ClInclude Include="src\Platform\SystemSettings.h" />
+    <ClCompile Include="src\Platform\SystemSettings.cpp" />
+    <!-- Theme 层 -->
+    <ClInclude Include="src\Theme\FluentTheme.h" />
+    <ClCompile Include="src\Theme\FluentTheme.cpp" />
+    <!-- Rendering 层 -->
+    <ClInclude Include="src\Rendering\Renderer.h" />
+    <ClCompile Include="src\Rendering\Renderer.cpp" />
+    <!-- UI 层 -->
+    <ClInclude Include="src\UI\Button.h" />
+    <ClCompile Include="src\UI\Button.cpp" />
+    <!-- Core 层 -->
+    <ClInclude Include="src\Core\App.h" />
+    <ClCompile Include="src\Core\App.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
