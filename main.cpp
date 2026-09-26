@@ -292,10 +292,6 @@ public:
             nullptr, nullptr, wc.hInstance, this);
         if (!hwnd) { FzLog(L"CreateWindowExW failed"); return E_FAIL; }
         FzLog(L"after_createwindow");
-        ShowWindow(hwnd, SW_SHOW);
-        FzLog(L"after_showwindow");
-        UpdateWindow(hwnd);
-        FzLog(L"after_updatewindow");
 
         // DPI
         HMONITOR mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
@@ -307,6 +303,10 @@ public:
         RECT rc; GetClientRect(hwnd, &rc);
         if (FAILED(Init(hwnd, rc.right - rc.left, rc.bottom - rc.top))) { FzLog(L"Renderer::Init failed"); return E_FAIL; }
         FzLog(L"after_init");
+        ShowWindow(hwnd, SW_SHOW);
+        FzLog(L"after_showwindow");
+        UpdateWindow(hwnd);
+        FzLog(L"after_updatewindow");
 
         // 按钮（Segoe MDL2 Assets 码位）
         buttons.push_back({ L"Home",     0xE80F, false, 0, 0, 0, 0, 0, 0, 0, false, false });
@@ -649,9 +649,31 @@ public:
 BOOL (WINAPI *App::pGetDpi)(HMONITOR, DWORD, UINT*, UINT*) = nullptr;
 
 } // namespace fz
+// ------------------------------ 崩溃诊断 ------------------------------------
+// 未处理异常时写 fz_crash.txt：异常代码 + 地址 + (AV 的读/写类型)
+static LONG WINAPI FzCrashHandler(EXCEPTION_POINTERS* ep) {
+    HANDLE f = CreateFileW(L"fz_crash.txt", GENERIC_WRITE, 0, nullptr,
+                           CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (f != INVALID_HANDLE_VALUE) {
+        const EXCEPTION_RECORD* r = ep->ExceptionRecord;
+        unsigned acc = (r->ExceptionCode == EXCEPTION_ACCESS_VIOLATION &&
+                        r->NumberParameters > 1) ? (unsigned)r->ExceptionInformation[0] : 0;
+        unsigned addr = (r->ExceptionCode == EXCEPTION_ACCESS_VIOLATION &&
+                        r->NumberParameters > 2) ? (unsigned)r->ExceptionInformation[1] : 0;
+        wchar_t b[192];
+        int n = _snwprintf_s(b, 192, _TRUNCATE,
+            L"[crash] code=0x%08X addr=%p accessType=%u accessAddr=0x%X\r\n",
+            (unsigned)r->ExceptionCode, (void*)r->ExceptionAddress, acc, addr);
+        DWORD w; WriteFile(f, b, (DWORD)(n * 2), &w, nullptr);
+        CloseHandle(f);
+    }
+    return EXCEPTION_EXECUTE_HANDLER;
+}
+
 
 // ------------------------------ 入口 ----------------------------------------
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
+    SetUnhandledExceptionFilter(FzCrashHandler);
     // 运行时解析 GetDpiForMonitor（Win8.1+ 均有，避免链接期依赖）
     fz::App::pGetDpi = (decltype(fz::App::pGetDpi))
         GetProcAddress(GetModuleHandleW(L"user32.dll"), "GetDpiForMonitor");
