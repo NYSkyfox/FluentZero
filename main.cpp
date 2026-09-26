@@ -177,20 +177,15 @@ struct Button {
 };
 
 // ------------------------------ 渲染后端 -----------------------------------
-// WS_EX_NOREDIRECTIONBITMAP + flip swap chain（AcrylicMenus 同款，Win10 1607+ / Win11）
+// Win32 经典路径：WS_EX_NOREDIRECTIONBITMAP + D2D1 HwndRenderTarget（共享工厂）
+// 背景用 0x00000000 Clear：DWM 处半透明处透出 BlurBehind 模糊 = Acrylic
 struct Renderer {
-    ComPtr<ID3D11Device> d3d;
-    ComPtr<ID3D11DeviceContext> d3dCtx;
-    ComPtr<IDXGISwapChain1> swap;
-    ComPtr<ID2D1Device> d2dDevice;
-    ComPtr<ID2D1DeviceContext1> dc;
-    ComPtr<ID2D1Bitmap1> backBuf;
-    ComPtr<IDWriteFactory> dw;
-    bool ok = false;        // Acrylic 是否生效（失败也能跑，只是无模糊）
-    bool drawing = false;
+    ComPtr<ID2D1Factory> d2dFactory;      // 共享工厂，可跨线程
+    ComPtr<ID2D1HwndRenderTarget> rt;     // 1.0 接口，Win8 即有
+    bool ok = false;
 
     HRESULT Init(HWND hwnd, int w, int h) {
-        // 1) 窗口不重定向位图：swap chain 内容直接交给 DWM 合成（保留原生标题栏）
+        // 1) 窗口不重定向位图：内容直接交给 DWM 合成（保留原生标题栏）
         LONG_PTR ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
         if (!(ex & WS_EX_NOREDIRECTIONBITMAP)) {
             SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex | WS_EX_NOREDIRECTIONBITMAP);
@@ -204,83 +199,41 @@ struct Renderer {
         bb.fEnable = TRUE;
         if (SUCCEEDED(DwmEnableBlurBehindWindow(hwnd, &bb))) ok = true;
 
-        // 3) D3D11
-        if (FAILED(D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
-                D3D11_CREATE_DEVICE_BGRA_SUPPORT, nullptr, 0, D3D11_SDK_VERSION,
-                &d3d, nullptr, &d3dCtx)))
+        // 3) D2D1 共享工厂（不依赖 D3D11 设备，更简单更稳）
+        if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SHARED,
+                __uuidof(ID2D1Factory), (IUnknown**)d2dFactory.GetAddressOf())))
             return E_FAIL;
 
-        // 4) DXGI factory
-        ComPtr<IDXGIDevice> dxgiDev;
-        if (FAILED(d3d.As(&dxgiDev)) || !dxgiDev) return E_FAIL;
-        ComPtr<IDXGIFactory2> factory;
-        if (FAILED(dxgiDev->GetParent(IID_PPV_ARGS(&factory))) || !factory) return E_FAIL;
-
-        // 5) flip swap chain（composition 模式创建，随后 SetHwnd 绑到窗口）
-        //    签名：(dxgiDevice, desc, output, swapChain)
-        DXGI_SWAP_CHAIN_DESC1 sd{};
-        sd.Width = w > 1 ? (UINT)w : 1;
-        sd.Height = h > 1 ? (UINT)h : 1;
-        sd.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
-        sd.SampleDesc.Count = 1;
-        sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-        sd.BufferCount = 2;
-        sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
-        sd.AlphaMode = DXGI_ALPHA_MODE_PREMULTIPLIED;
-        if (FAILED(factory->CreateSwapChainForComposition(dxgiDev.Get(), &sd, nullptr, &swap)))
+        D2D1_RENDER_TARGET_PROPERTIES rtp = D2D1::RenderTargetProperties(
+            D2D1_RENDER_TARGET_TYPE_DEFAULT, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+        if (FAILED(d2dFactory->CreateHwndRenderTarget(rtp, D2D1::SizeU(w, h), hwnd, &rt)))
             return E_FAIL;
-        RECT rc; GetClientRect(hwnd, &rc);
-        if (FAILED(swap->SetHwnd(hwnd, &rc))) return E_FAIL;
 
-        // 6) D2D1 device + DeviceContext1（1.1 接口才能用 DXGI 资源建位图）
-        if (FAILED(D2D1CreateDevice(d3d.Get(), nullptr, &d2dDevice))) return E_FAIL;
-        if (FAILED(D2D1CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &dc)))
-            return E_FAIL;
-        if (FAILED(UpdateBackBuffer())) return E_FAIL;
-
-        // 7) DirectWrite
+        // 4) DirectWrite
         if (FAILED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED,
                 __uuidof(IDWriteFactory), (IUnknown**)dw.GetAddressOf())))
             return E_FAIL;
         return S_OK;
     }
 
-    HRESULT UpdateBackBuffer() {
-        ComPtr<IDXGIResource> res;
-        if (FAILED(swap->GetBuffer(0, IID_PPV_ARGS(&res))) || !res) return E_FAIL;
-        ComPtr<ID3D11Texture2D> tex;
-        if (FAILED(res.As(&tex))) return E_FAIL;
-        backBuf.Reset();
-        return dc->CreateBitmapFromDxgiResource(tex.Get(), nullptr, &backBuf);
+    void Resize(HWND hwnd, int w, int h) {
+        if (rt && w > 1 && h > 1) rt->Resize(D2D1::SizeU(w, h));
     }
 
-    HRESULT Resize(HWND hwnd, int w, int h) {
-        if (!swap || w < 1 || h < 1) return E_FAIL;
-        if (FAILED(swap->ResizeBuffers(0, w, h, DXGI_FORMAT_UNKNOWN, 0))) return E_FAIL;
-        RECT rc; GetClientRect(hwnd, &rc);
-        if (FAILED(swap->SetHwnd(hwnd, &rc))) return E_FAIL;
-        return UpdateBackBuffer();
+    void Draw() {
+        if (!rt) return;
+        rt->BeginDraw();
+        onDraw();
+        rt->EndDraw();
     }
 
-    void BeginDraw() {
-        drawing = SUCCEEDED(dc->BeginDraw());
-        if (drawing) dc->SetTarget(backBuf.Get());
-    }
-
-    HRESULT EndDraw() {
-        if (!drawing) return E_FAIL;
-        drawing = false;
-        if (FAILED(dc->EndDraw())) return E_FAIL;   // GPU 重置等，demo 不做重建
-        return swap->Present(0, 0);
-    }
+    virtual void onDraw() = 0;
 };
 
 // ------------------------------ 应用本体 -----------------------------------
-class App {
+class App : public Renderer {
 public:
     HWND hwnd = nullptr;
-    HBRUSH brush = nullptr;
-    Renderer r;
     FluentTheme th;
     std::vector<Button> buttons;
     float lastT = 0;
@@ -322,7 +275,7 @@ public:
         dpiScale = dpi / 96.0f;
 
         RECT rc; GetClientRect(hwnd, &rc);
-        r.Init(hwnd, rc.right - rc.left, rc.bottom - rc.top);
+        Init(hwnd, rc.right - rc.left, rc.bottom - rc.top);
 
         // 按钮（Segoe MDL2 Assets 码位）
         buttons.push_back({ L"Home",     0xE80F, false, 0, 0, 0, 0, 0, 0, 0, false, false });
@@ -338,13 +291,13 @@ public:
 
     // ------------------------------ 布局 ------------------------------
     float Measure(const std::wstring& t, const wchar_t* face, float size, DWRITE_FONT_WEIGHT weight) {
-        if (!r.dw) return (float)t.size() * size * 0.6f;
+        if (!dw) return (float)t.size() * size * 0.6f;
         ComPtr<IDWriteTextFormat> f;
-        r.dw->CreateTextFormat(face, nullptr, weight, DWRITE_FONT_STYLE_NORMAL,
+        dw->CreateTextFormat(face, nullptr, weight, DWRITE_FONT_STYLE_NORMAL,
             DWRITE_FONT_STRETCH_NORMAL, size, L"en-us", &f);
         if (!f) return (float)t.size() * size * 0.6f;
         ComPtr<IDWriteTextLayout> lay;
-        if (FAILED(r.dw->CreateTextLayout(t.c_str(), (UINT32)t.size(), f.Get(), 1e6f, 1e6f, &lay)))
+        if (FAILED(dw->CreateTextLayout(t.c_str(), (UINT32)t.size(), f.Get(), 1e6f, 1e6f, &lay)))
             return (float)t.size() * size * 0.6f;
         DWRITE_TEXT_METRICS tm{};
         lay->GetMetrics(&tm);
@@ -375,7 +328,7 @@ public:
         // Primary 按钮（强调色）
         Button& pb = buttons[3];
         pb.x = m; pb.y = y; pb.h = 34 * s;
-        float ptw = Measure(pb.text, L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_SEMIBOLD);
+        float ptw = Measure(pb.text, L"Segoe UI", 13 * s, (DWRITE_FONT_WEIGHT)600);
         pb.w = ptw + 18 * s + 6 * s + 32 * s;
         y += 34 * s + 24 * s;
 
@@ -395,23 +348,23 @@ public:
     // ------------------------------ 文本辅助 ------------------------------
     ComPtr<ID2D1SolidColorBrush> MakeBrush(D2D1_COLOR_F c) {
         ComPtr<ID2D1SolidColorBrush> b;
-        r.dc->CreateSolidColorBrush(Premul(c), &b);
+        rt->CreateSolidColorBrush(Premul(c), &b);
         return b;
     }
 
     void DrawText(const std::wstring& t, float x, float y, float maxW,
                   const wchar_t* face, float size, DWRITE_FONT_WEIGHT weight, D2D1_COLOR_F c) {
-        if (!r.dw) return;
+        if (!dw) return;
         ComPtr<IDWriteTextFormat> f;
-        if (FAILED(r.dw->CreateTextFormat(face, nullptr, weight, DWRITE_FONT_STYLE_NORMAL,
+        if (FAILED(dw->CreateTextFormat(face, nullptr, weight, DWRITE_FONT_STYLE_NORMAL,
                 DWRITE_FONT_STRETCH_NORMAL, size, L"en-us", &f)))
             return;
         ComPtr<IDWriteTextLayout> lay;
-        if (FAILED(r.dw->CreateTextLayout(t.c_str(), (UINT32)t.size(), f.Get(), maxW, 1e6f, &lay)))
+        if (FAILED(dw->CreateTextLayout(t.c_str(), (UINT32)t.size(), f.Get(), maxW, 1e6f, &lay)))
             return;
         D2D1_POINT_2F p{};
         p.x = x; p.y = y;
-        r.dc->DrawTextLayout(p, lay.Get(), MakeBrush(c).Get());
+        rt->DrawTextLayout(p, lay.Get(), MakeBrush(c).Get());
     }
 
     // ------------------------------ 绘制 ------------------------------
@@ -427,12 +380,12 @@ public:
 
         float r3 = 3 * s;
         // 填充
-        r.dc->FillRoundedRectangle(
+        rt->FillRoundedRectangle(
             FzRR(b.x, b.y, b.x + b.w, b.y + b.h, r3),
             MakeBrush(fill).Get());
         // 边框（Win10 普通按钮有 1px 描边）
         if (!b.primary) {
-            r.dc->DrawRoundedRectangle(
+            rt->DrawRoundedRectangle(
                 FzRR(b.x + 0.5f, b.y + 0.5f, b.x + b.w - 0.5f, b.y + b.h - 0.5f, r3),
                 MakeBrush(th.btnBorder).Get(), 1);
         }
@@ -441,7 +394,7 @@ public:
         if (rv > 0.003f) {
             D2D1_COLOR_F rc_ = th.reveal;
             rc_.a = rc_.a * rv;
-            r.dc->DrawRoundedRectangle(
+            rt->DrawRoundedRectangle(
                 FzRR(b.x + 0.5f, b.y + 0.5f, b.x + b.w - 0.5f, b.y + b.h - 0.5f, r3),
                 MakeBrush(rc_).Get(), 1.5f * s);
         }
@@ -449,7 +402,7 @@ public:
         // 图标 + 文字（整体水平居中）
         float iconW = b.glyph ? 18 * s : 0, gapW = b.glyph ? 6 * s : 0;
         float tw = Measure(b.text, L"Segoe UI", 13 * s,
-            b.primary ? DWRITE_FONT_WEIGHT_SEMIBOLD : DWRITE_FONT_WEIGHT_NORMAL);
+            b.primary ? (DWRITE_FONT_WEIGHT)600 : DWRITE_FONT_WEIGHT_NORMAL);
         float cx = b.x + (b.w - (iconW + gapW + tw)) * 0.5f;
         float cy = b.y + b.h * 0.5f;
         if (b.glyph) {
@@ -459,23 +412,21 @@ public:
             cx += iconW + gapW;
         }
         DrawText(b.text, cx, cy - 8 * s, b.w, L"Segoe UI", 13 * s,
-            b.primary ? DWRITE_FONT_WEIGHT_SEMIBOLD : DWRITE_FONT_WEIGHT_NORMAL, txt);
+            b.primary ? (DWRITE_FONT_WEIGHT)600 : DWRITE_FONT_WEIGHT_NORMAL, txt);
     }
 
-    void Draw() {
+    void onDraw() override {
         RECT rc; GetClientRect(hwnd, &rc);
         float W = rc.right - rc.left, H = rc.bottom - rc.top;
         float s = dpiScale;
 
-        r.BeginDraw();
-
-        // 1) 背景：Acrylic 半透明主题色（DWM 模糊从透明处透出桌面）
-        // 注意：D2D 的 Clear 要求预乘 alpha
-        r.dc->Clear(Premul(th.bg));
+                // 1) 背景：Acrylic 半透明主题色（DWM 模糊从透明处透出桌面）
+        // 背景：Acrylic 半透明主题色（DWM 把模糊从透明处透出）
+        rt->Clear(Premul(th.bg));
 
         // 2) 标题 / 副标题
-        DrawText(L"FluentZero", 28 * s, titleY, W, L"Segoe UI Semibold", 26 * s,
-                 DWRITE_FONT_WEIGHT_SEMIBOLD, th.text1);
+        DrawText(L"FluentZero", 28 * s, titleY, W, L"Segoe UI", 26 * s,
+                 (DWRITE_FONT_WEIGHT)600, th.text1);
         DrawText(L"Windows 10 Fluent Design · 纯 Win32 + Direct2D 手搓 · 零依赖单 exe",
                  28 * s, subY, W, L"Segoe UI", 12 * s, DWRITE_FONT_WEIGHT_NORMAL, th.text2);
 
@@ -483,14 +434,14 @@ public:
         for (auto& b : buttons) DrawButton(b);
 
         // 4) 信息卡
-        r.dc->FillRoundedRectangle(
+        rt->FillRoundedRectangle(
             FzRR(cardX, cardY, cardX + cardW, cardY + cardH, 6 * s),
             MakeBrush(th.card).Get());
-        r.dc->DrawRoundedRectangle(
+        rt->DrawRoundedRectangle(
             FzRR(cardX + 0.5f, cardY + 0.5f, cardX + cardW - 0.5f, cardY + cardH - 0.5f, 6 * s),
             MakeBrush(th.cardBorder).Get(), 1);
         // 强调色色块
-        r.dc->FillRoundedRectangle(
+        rt->FillRoundedRectangle(
             FzRR(cardX + 16 * s, cardY + 16 * s, cardX + 16 * s + 36 * s, cardY + 16 * s + 36 * s, 3 * s),
             MakeBrush(FzCol(th.accent.r, th.accent.g, th.accent.b, 1)).Get());
         float tx = cardX + 16 * s + 36 * s + 16 * s;
@@ -504,7 +455,6 @@ public:
                  tx, cardY + 94 * s, W, L"Segoe UI", 11 * s,
                  DWRITE_FONT_WEIGHT_NORMAL, th.text2);
 
-        r.EndDraw();
     }
 
     // ------------------------------ 输入 ------------------------------
@@ -578,7 +528,7 @@ public:
             float dt = Fzmn(0.1f, FzMx(0.0f, t - lastT) / 1000.0f);
             lastT = t;
             Update(dt);
-            if (needsDraw && r.ok) {
+            if (needsDraw && rt) {
                 Draw();
                 needsDraw = false;
             }
@@ -611,8 +561,8 @@ public:
             return 0;
         }
         case WM_SIZE:
-            if (r.swap && LOWORD(l) > 0 && HIWORD(l) > 0)
-                r.Resize(hwnd, LOWORD(l), HIWORD(l));
+            if (LOWORD(l) > 0 && HIWORD(l) > 0)
+                Resize(hwnd, LOWORD(l), HIWORD(l));
             Layout();
             return 0;
         case WM_MOUSEMOVE:
