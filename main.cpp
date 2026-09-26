@@ -586,8 +586,11 @@ public:
     LRESULT WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         switch (m) {
         case WM_NCCREATE:
+            // 必须转发给 DefWindowProcW 完成窗口内部结构初始化，
+            // 否则窗口破损、WM_CREATE 不会发出、CreateWindowExW 返回 NULL
+            return DefWindowProcW(h, m, w, l);
         case WM_CREATE:
-            return 0;  // 创建阶段必须返回 0（成功），否则 CreateWindowExW 失败
+            return 0;
         case WM_GETMINMAXINFO: {
             auto* mm = (MINMAXINFO*)l;
             mm->ptMinTrackSize.x = 560;
