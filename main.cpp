@@ -284,23 +284,29 @@ public:
         if (!RegisterClassExW(&wc)) { FzLog(L"RegisterClassExW failed"); return E_FAIL; }
 
         th = FluentTheme::Create();
+        FzLog(L"after_theme");
 
         hwnd = CreateWindowExW(0, wc.lpszClassName, L"FluentZero",
             WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME,
             CW_USEDEFAULT, CW_USEDEFAULT, 720, 520,
             nullptr, nullptr, wc.hInstance, this);
         if (!hwnd) { FzLog(L"CreateWindowExW failed"); return E_FAIL; }
+        FzLog(L"after_createwindow");
         ShowWindow(hwnd, SW_SHOW);
+        FzLog(L"after_showwindow");
         UpdateWindow(hwnd);
+        FzLog(L"after_updatewindow");
 
         // DPI
         HMONITOR mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
         UINT dpi = 96;
         if (pGetDpi) pGetDpi(mon, 0 /*MDT_EFFECTIVE_DPI*/, nullptr, &dpi);
         dpiScale = dpi / 96.0f;
+        FzLog(L"after_dpi");
 
         RECT rc; GetClientRect(hwnd, &rc);
         if (FAILED(Init(hwnd, rc.right - rc.left, rc.bottom - rc.top))) { FzLog(L"Renderer::Init failed"); return E_FAIL; }
+        FzLog(L"after_init");
 
         // 按钮（Segoe MDL2 Assets 码位）
         buttons.push_back({ L"Home",     0xE80F, false, 0, 0, 0, 0, 0, 0, 0, false, false });
@@ -310,6 +316,7 @@ public:
 
         Layout();
         RebuildDetail();
+        FzLog(L"after_layout");
         lastT = (float)GetTickCount64();
         return S_OK;
     }
