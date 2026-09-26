@@ -1,17 +1,17 @@
-# FluentZero CI 截图脚本：启动 exe -> 找窗口 -> 置前 -> 截窗口区域存 PNG
+# FluentZero CI 截图脚本
+# 1) 启动 exe，等窗口
+# 2) 主窗口(class=FluentZeroWnd)在 -> PrintWindow 抓 D2D 内容
+# 3) 不在 -> app.Create() 失败弹了 MessageBox：读 fz_debug.txt 打印失败步骤，截整屏作证据
 $ErrorActionPreference = "Stop"
-
-# System.Drawing（pwsh7 需显式加载）
 Add-Type -AssemblyName System.Drawing
+Add-Type -AssemblyName System.Windows.Forms
 
 $exe = Join-Path $PWD "bin\x64\Release\FluentZero.exe"
 if (-not (Test-Path $exe)) { throw "exe not found: $exe" }
 
-# 后台启动 GUI 程序（不阻塞）
-$proc = Start-Process -FilePath $exe -PassThru
-Start-Sleep -Seconds 4   # 等窗口创建 + 首帧渲染
+$proc = Start-Process -FilePath $exe -WorkingDirectory $PWD -PassThru
+Start-Sleep -Seconds 4
 
-# P/Invoke 声明
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
@@ -25,6 +25,7 @@ public class FzW {
     [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
     [DllImport("user32.dll")] public static extern int GetClassName(IntPtr h, StringBuilder s, int max);
     [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr h, StringBuilder s, int max);
+    [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr hdc, uint flags);
     public delegate bool EnumCB(IntPtr h, IntPtr l);
     [DllImport("user32.dll")] public static extern bool EnumWindows(EnumCB cb, IntPtr l);
     public static void Dump() {
@@ -40,36 +41,53 @@ public class FzW {
 }
 "@
 
-# 按【类名】查找（第一个参数是类名，第二个是标题）
+$shotPath = Join-Path $PWD "fluentzero_screenshot.png"
 $hwnd = [FzW]::FindWindow("FluentZeroWnd", $null)
+
 if ($hwnd -eq [IntPtr]::Zero) {
-    Write-Host "!!! FindWindow by class failed — enumerating visible windows for diagnosis:"
+    Write-Host "!!! 主窗口未出现 —— app.Create() 可能失败，打印诊断:"
+    $dbg = Join-Path $PWD "fz_debug.txt"
+    if (Test-Path $dbg) {
+        Write-Host "===== fz_debug.txt ====="
+        Get-Content $dbg -Encoding Unicode | ForEach-Object { Write-Host "  $_" }
+        Write-Host "========================"
+    } else {
+        Write-Host "  (fz_debug.txt 不存在)"
+    }
+    Write-Host "可见窗口列表:"
     [FzW]::Dump()
+    $screen = [System.Windows.Forms.SystemInformation]::VirtualScreen
+    $bmp = New-Object System.Drawing.Bitmap($screen.Width, $screen.Height)
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $g.CopyFromScreen($screen.X, $screen.Y, 0, 0, $bmp.Size)
+    $g.Dispose()
+    $bmp.Save($shotPath, [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+    Write-Host "已保存整屏截图（含失败 MessageBox）: $shotPath"
     Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-    throw "FluentZero window (class=FluentZeroWnd) not found"
+    throw "FluentZero 主窗口未创建（初始化失败）"
 }
-Write-Host "Found window handle: $hwnd"
 
-# 置前 + 激活，等重绘
-[FzW]::ShowWindow($hwnd, 9) | Out-Null    # SW_RESTORE
+Write-Host "找到主窗口 handle=$hwnd，用 PrintWindow 抓 D2D 内容"
+[FzW]::ShowWindow($hwnd, 9) | Out-Null
 [FzW]::SetForegroundWindow($hwnd) | Out-Null
-Start-Sleep -Seconds 2
+Start-Sleep -Seconds 1
 
-# 取窗口矩形，截屏
 $rect = New-Object FzW+RECT
 [FzW]::GetWindowRect($hwnd, [ref]$rect) | Out-Null
 $w = $rect.r - $rect.l; $h = $rect.b - $rect.t
-Write-Host "Window rect: ($($rect.l),$($rect.t)) ${w}x${h}"
-if ($w -lt 10 -or $h -lt 10) { throw "bad window size ${w}x${h}" }
+Write-Host "窗口矩形: ($($rect.l),$($rect.t)) ${w}x${h}"
 
 $bmp = New-Object System.Drawing.Bitmap($w, $h)
 $g = [System.Drawing.Graphics]::FromImage($bmp)
-$g.CopyFromScreen($rect.l, $rect.t, 0, 0, (New-Object System.Drawing.Size($w, $h)))
+$hdc = $g.GetHdc()
+$ok = [FzW]::PrintWindow($hwnd, $hdc, 2)   # PW_RENDERFULLCONTENT
+$g.ReleaseHdc($hdc)
 $g.Dispose()
+Write-Host "PrintWindow 返回: $ok"
 
-$out = Join-Path $PWD "fluentzero_screenshot.png"
-$bmp.Save($out, [System.Drawing.Imaging.ImageFormat]::Png)
+$bmp.Save($shotPath, [System.Drawing.Imaging.ImageFormat]::Png)
 $bmp.Dispose()
-Write-Host ("Saved screenshot: {0} ({1} KB)" -f $out, [math]::Round((Get-Item $out).Length/1KB, 1))
+Write-Host ("已保存截图: {0} ({1} KB)" -f $shotPath, [math]::Round((Get-Item $shotPath).Length/1KB, 1))
 
 Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue

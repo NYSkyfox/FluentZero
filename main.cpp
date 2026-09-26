@@ -179,6 +179,17 @@ struct Button {
 // ------------------------------ 渲染后端 -----------------------------------
 // Win32 经典路径：WS_EX_NOREDIRECTIONBITMAP + D2D1 HwndRenderTarget（共享工厂）
 // 背景用 0x00000000 Clear：DWM 处半透明处透出 BlurBehind 模糊 = Acrylic
+// 诊断：初始化失败时写步骤到 exe 同目录 fz_debug.txt
+static void FzLog(const wchar_t* msg) {
+    HANDLE h = CreateFileW(L"fz_debug.txt", FILE_APPEND_DATA, 0, nullptr,
+                           OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (h != INVALID_HANDLE_VALUE) {
+        std::wstring line = std::wstring(L"[step] ") + msg + L"  (LastError=" +
+            std::to_wstring(GetLastError()) + L")\r\n";
+        DWORD w; WriteFile(h, line.c_str(), (DWORD)line.size() * 2, &w, nullptr);
+        CloseHandle(h);
+    }
+}
 struct Renderer {
     ComPtr<ID2D1Factory> d2dFactory;
     ComPtr<ID2D1HwndRenderTarget> rt;
@@ -199,8 +210,7 @@ struct Renderer {
         bb.fEnable = TRUE;
         if (SUCCEEDED(DwmEnableBlurBehindWindow(hwnd, &bb))) ok = true;
         // 3) D2D1 工厂（1.0 只有 SINGLE / MULTI_THREADED 两种）
-        if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, d2dFactory.GetAddressOf())))
-            return E_FAIL;
+        if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, d2dFactory.GetAddressOf()))) { FzLog(L"D2D1CreateFactory"); return E_FAIL; }
         // 4) 手搓渲染目标属性（不依赖 d2d1helper.h 的 C++ 辅助函数）
         D2D1_RENDER_TARGET_PROPERTIES rtp{};
         rtp.type = D2D1_RENDER_TARGET_TYPE_DEFAULT;
@@ -213,12 +223,10 @@ struct Renderer {
         hrp.hwnd = hwnd;
         hrp.pixelSize.width = (UINT32)w; hrp.pixelSize.height = (UINT32)h;
         hrp.presentOptions = D2D1_PRESENT_OPTIONS_NONE;
-        if (FAILED(d2dFactory->CreateHwndRenderTarget(rtp, hrp, &rt)))
-            return E_FAIL;
+        if (FAILED(d2dFactory->CreateHwndRenderTarget(rtp, hrp, &rt))) { FzLog(L"CreateHwndRenderTarget"); return E_FAIL; }
         // 5) DirectWrite
         if (FAILED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED,
-                __uuidof(IDWriteFactory), (IUnknown**)dw.GetAddressOf())))
-            return E_FAIL;
+                __uuidof(IDWriteFactory), (IUnknown**)dw.GetAddressOf()))) { FzLog(L"DWriteCreateFactory"); return E_FAIL; }
         return S_OK;
     }
     void Resize(HWND hwnd, int w, int h) {
@@ -262,7 +270,7 @@ public:
         wc.lpszClassName = L"FluentZeroWnd";
         wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
         wc.hbrBackground = nullptr;   // DComp 接管，GDI 不画
-        if (!RegisterClassExW(&wc)) return E_FAIL;
+        if (!RegisterClassExW(&wc)) { FzLog(L"RegisterClassExW failed"); return E_FAIL; }
 
         th = FluentTheme::Create();
 
@@ -270,7 +278,7 @@ public:
             WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME,
             CW_USEDEFAULT, CW_USEDEFAULT, 720, 520,
             nullptr, nullptr, wc.hInstance, this);
-        if (!hwnd) return E_FAIL;
+        if (!hwnd) { FzLog(L"CreateWindowExW failed"); return E_FAIL; }
         ShowWindow(hwnd, SW_SHOW);
         UpdateWindow(hwnd);
 
@@ -281,7 +289,7 @@ public:
         dpiScale = dpi / 96.0f;
 
         RECT rc; GetClientRect(hwnd, &rc);
-        Init(hwnd, rc.right - rc.left, rc.bottom - rc.top);
+        if (FAILED(Init(hwnd, rc.right - rc.left, rc.bottom - rc.top))) { FzLog(L"Renderer::Init failed"); return E_FAIL; }
 
         // 按钮（Segoe MDL2 Assets 码位）
         buttons.push_back({ L"Home",     0xE80F, false, 0, 0, 0, 0, 0, 0, 0, false, false });
