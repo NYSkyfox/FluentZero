@@ -580,14 +580,11 @@ public:
         } else {
             self = (App*)GetWindowLongPtrW(h, GWLP_USERDATA);
         }
-        LRESULT r;
-        if (self) r = self->WndProc(h, m, w, l);
-        else r = DefWindowProcW(h, m, w, l);
-        // 只记录创建/初始化阶段的消息（避免日志爆炸）
-        if (m == WM_NCCREATE || m == WM_CREATE || m == WM_NCACTIVATE || m == WM_ACTIVATE ||
-            m == WM_SIZE || m == WM_PAINT || m == WM_ERASEBKGND || m == WM_DESTROY || m <= 0x0010)
-            FzLogMsg(m, (self ? 1 : 0), (long long)h, (long long)r);
-        return r;
+        // 记录“进入”的消息（前 120 条），崩溃前最后一条即崩溃点
+        static int msgCount = 0;
+        if (msgCount < 120) { FzLogMsg(m, (self ? 1 : 0), (long long)h, -1); msgCount++; }
+        if (self) return self->WndProc(h, m, w, l);
+        return DefWindowProcW(h, m, w, l);
     }
 
     LRESULT WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
@@ -598,6 +595,12 @@ public:
             return DefWindowProcW(h, m, w, l);
         case WM_CREATE:
             return 0;
+        case WM_PAINT: {
+            // D2D 自己管绘制（WM_ERASEBKGND 已 return 1），
+            // 这里只做 Begin/EndPaint 空处理，不让 DefWindowProc 碰 GDI 背景刷
+            PAINTSTRUCT ps; BeginPaint(hwnd, &ps); EndPaint(hwnd, &ps);
+            return 0;
+        }
         case WM_GETMINMAXINFO: {
             auto* mm = (MINMAXINFO*)l;
             mm->ptMinTrackSize.x = 560;
