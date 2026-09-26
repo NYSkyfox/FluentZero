@@ -286,6 +286,14 @@ public:
         th = FluentTheme::Create();
         FzLog(L"after_theme");
 
+        // 按钮必须先于 CreateWindowExW 填充：
+        // CreateWindowExW / ShowWindow 会同步发 WM_SIZE -> Layout() 访问 buttons[i]，
+        // 若此时 buttons 为空则 operator[] 越界 -> 野引用写 -> 空指针写崩溃(0xC0000005)
+        buttons.push_back({ L"Home",     0xE80F, false, 0, 0, 0, 0, 0, 0, 0, false, false });
+        buttons.push_back({ L"Settings", 0xE713, false, 0, 0, 0, 0, 0, 0, 0, false, false });
+        buttons.push_back({ L"Refresh",  0xE895, false, 0, 0, 0, 0, 0, 0, 0, false, false });
+        buttons.push_back({ L"Add item", 0xE710, true,  0, 0, 0, 0, 0, 0, 0, false, false });
+
         hwnd = CreateWindowExW(0, wc.lpszClassName, L"FluentZero",
             WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME,
             CW_USEDEFAULT, CW_USEDEFAULT, 720, 520,
@@ -307,12 +315,6 @@ public:
         FzLog(L"after_showwindow");
         UpdateWindow(hwnd);
         FzLog(L"after_updatewindow");
-
-        // 按钮（Segoe MDL2 Assets 码位）
-        buttons.push_back({ L"Home",     0xE80F, false, 0, 0, 0, 0, 0, 0, 0, false, false });
-        buttons.push_back({ L"Settings", 0xE713, false, 0, 0, 0, 0, 0, 0, 0, false, false });
-        buttons.push_back({ L"Refresh",  0xE895, false, 0, 0, 0, 0, 0, 0, 0, false, false });
-        buttons.push_back({ L"Add item", 0xE710, true,  0, 0, 0, 0, 0, 0, 0, false, false });
 
         Layout();
         RebuildDetail();
@@ -337,6 +339,7 @@ public:
     }
 
     void Layout() {
+        if (buttons.size() < 4) return;   // 防御：buttons 未就绪前不布局（防 WM_SIZE 早到越界）
         RECT rc; GetClientRect(hwnd, &rc);
         float W = rc.right - rc.left, H = rc.bottom - rc.top;
         float m = 28 * dpiScale;
