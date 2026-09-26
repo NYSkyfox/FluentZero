@@ -21,6 +21,7 @@
 #include <windowsx.h>
 #include <dwmapi.h>
 #include <dcomp.h>
+#include <d3d11.h>   // 必须在 d2d1.h 之前：D2D1 的部分类型定义依赖 D3D11
 #include <d2d1.h>
 #include <d2d1helper.h>
 #include <dwrite.h>
