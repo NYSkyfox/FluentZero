@@ -57,8 +57,8 @@ static inline D2D1_COLOR_F Brighten(D2D1_COLOR_F c, float amt) {
 }
 
 // 圆角矩形（C 风格结构体，跨 SDK 版本稳定）
-static inline D2D1_ROUNDED_RECT_F FzRR(float l, float t, float r, float b, float rad) {
-    D2D1_ROUNDED_RECT_F rc{};
+static inline D2D1_ROUNDED_RECT FzRR(float l, float t, float r, float b, float rad) {
+    D2D1_ROUNDED_RECT rc{};
     rc.rect.left = l; rc.rect.top = t; rc.rect.right = r; rc.rect.bottom = b;
     rc.radiusX = rad; rc.radiusY = rad;
     return rc;
@@ -72,8 +72,8 @@ static inline D2D1_COLOR_F FzCol(float r, float g, float b, float a = 1.0f) {
 }
 
 static std::wstring HexOf(D2D1_COLOR_F c) {
-    char buf[8];
-    sprintf_s(buf, "#%02X%02X%02X",
+    wchar_t buf[8];
+    swprintf_s(buf, L"#%02X%02X%02X",
               (int)(c.r * 255 + 0.5f), (int)(c.g * 255 + 0.5f), (int)(c.b * 255 + 0.5f));
     return buf;
 }
@@ -180,8 +180,9 @@ struct Button {
 // Win32 经典路径：WS_EX_NOREDIRECTIONBITMAP + D2D1 HwndRenderTarget（共享工厂）
 // 背景用 0x00000000 Clear：DWM 处半透明处透出 BlurBehind 模糊 = Acrylic
 struct Renderer {
-    ComPtr<ID2D1Factory> d2dFactory;      // 共享工厂，可跨线程
-    ComPtr<ID2D1HwndRenderTarget> rt;     // 1.0 接口，Win8 即有
+    ComPtr<ID2D1Factory> d2dFactory;
+    ComPtr<ID2D1HwndRenderTarget> rt;
+    ComPtr<IDWriteFactory> dw;
     bool ok = false;
 
     HRESULT Init(HWND hwnd, int w, int h) {
@@ -192,41 +193,47 @@ struct Renderer {
             SetWindowPos(hwnd, nullptr, 0, 0, 0, 0,
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
         }
-
         // 2) Acrylic：DWM 模糊窗口后方内容（Win10 1607+ 经典实现）
         DWM_BLURBEHIND bb{};
         bb.dwFlags = DWM_BB_ENABLE;
         bb.fEnable = TRUE;
         if (SUCCEEDED(DwmEnableBlurBehindWindow(hwnd, &bb))) ok = true;
-
-        // 3) D2D1 共享工厂（不依赖 D3D11 设备，更简单更稳）
-        if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SHARED,
+        // 3) D2D1 工厂（1.0 只有 SINGLE / MULTI_THREADED 两种）
+        if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED,
                 __uuidof(ID2D1Factory), (IUnknown**)d2dFactory.GetAddressOf())))
             return E_FAIL;
-
-        D2D1_RENDER_TARGET_PROPERTIES rtp = D2D1::RenderTargetProperties(
-            D2D1_RENDER_TARGET_TYPE_DEFAULT, D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
-        if (FAILED(d2dFactory->CreateHwndRenderTarget(rtp, D2D1::SizeU(w, h), hwnd, &rt)))
+        // 4) 手搓渲染目标属性（不依赖 d2d1helper.h 的 C++ 辅助函数）
+        D2D1_RENDER_TARGET_PROPERTIES rtp{};
+        rtp.type = D2D1_RENDER_TARGET_TYPE_DEFAULT;
+        rtp.pixelFormat.format = DXGI_FORMAT_B8G8R8A8_UNORM;
+        rtp.pixelFormat.alphaMode = D2D1_ALPHA_MODE_PREMULTIPLIED;
+        rtp.dpiX = 96.0f; rtp.dpiY = 96.0f;
+        rtp.usage = D2D1_RENDER_TARGET_USAGE_NONE;
+        rtp.minLevel = D2D1_FEATURE_LEVEL_DEFAULT;
+        D2D1_HWND_RENDER_TARGET_PROPERTIES hrp{};
+        hrp.hwnd = hwnd;
+        hrp.pixelSize.width = (UINT32)w; hrp.pixelSize.height = (UINT32)h;
+        hrp.presentOptions = D2D1_PRESENT_OPTIONS_NONE;
+        if (FAILED(d2dFactory->CreateHwndRenderTarget(rtp, hrp, &rt)))
             return E_FAIL;
-
-        // 4) DirectWrite
+        // 5) DirectWrite
         if (FAILED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED,
                 __uuidof(IDWriteFactory), (IUnknown**)dw.GetAddressOf())))
             return E_FAIL;
         return S_OK;
     }
-
     void Resize(HWND hwnd, int w, int h) {
-        if (rt && w > 1 && h > 1) rt->Resize(D2D1::SizeU(w, h));
+        if (rt && w > 1 && h > 1) {
+            D2D1_SIZE_U su{}; su.width = (UINT32)w; su.height = (UINT32)h;
+            rt->Resize(&su);
+        }
     }
-
     void Draw() {
         if (!rt) return;
         rt->BeginDraw();
         onDraw();
         rt->EndDraw();
     }
-
     virtual void onDraw() = 0;
 };
 
