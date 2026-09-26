@@ -1,5 +1,14 @@
 #pragma once
 
+// 目标平台 Win10：必须在 windows.h 之前定义，
+// 否则 d2d1.h/dxgi1_3.h 只暴露旧接口（ID2D1Device 系列 / SetHwnd 均被版本宏门控）
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0A00
+#endif
+#ifndef WINVER
+#define WINVER 0x0A00
+#endif
+
 // FluentZero  ——  Win10 风格 Fluent Design，纯手搓，零第三方依赖。
 //
 // 技术栈（全部是 Windows 系统自带的 DLL）：
@@ -23,6 +32,7 @@
 #include <d3d11.h>   // 必须在 d2d1.h 之前：D2D1 的部分类型定义依赖 D3D11
 #include <dxgi1_3.h> // IDXGISwapChain1 / DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL
 #include <d2d1.h>
+#include <d2d1_1.h>  // D2D1 1.1：ID2D1Device / ID2D1DeviceContext1 / ID2D1Bitmap1
 #include <dwrite.h>
 #include <wrl/client.h>
 #include <string>
