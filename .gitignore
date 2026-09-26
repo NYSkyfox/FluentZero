@@ -4,3 +4,8 @@ bin/
 obj/
 *.user
 *.aps
+btn3.png
+btn_row.png
+fluentzero_screenshot.png
+fz_debug.txt
+fz_crash.txt
