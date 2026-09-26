@@ -139,10 +139,11 @@ HWND（WS_EX_NOREDIRECTIONBITMAP，保留原生标题栏）
 | 区块 | 状态 | 备注 |
 |---|:---:|---|
 | Card（信息卡） | ✅ | 当前为布局区块，未抽成独立控件 |
+| NavPane（侧边导航） | ✅ | 磨砂面板 + hover 渐显 + Reveal 光带 + 强调色选中指示条 |
 | 标题 / 副标题（TextBlock） | ✅ | |
 | Border / Grid / StackPanel | — | 由 Core 布局逻辑直接承担，无独立控件抽象 |
 
-**进度小结**：已覆盖核心交互控件中的 **Button（1 个）** + 非交互信息区块（Card），
+**进度小结**：已覆盖核心交互控件 **Button** + 导航组件 **NavPane** + 非交互区块（Card），
 其余按上表优先级推进。
 
 ### 里程碑
