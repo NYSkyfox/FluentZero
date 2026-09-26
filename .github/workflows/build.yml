@@ -1,0 +1,33 @@
+# 仅手动触发：在仓库 Actions 页面点 "Run workflow" 按钮运行
+name: build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build (Release|x64)
+        working-directory: .
+        run: msbuild FluentZero.sln /p:Configuration=Release /p:Platform=x64 /v:m /nologo
+
+      - name: List output
+        run: |
+          Write-Host "=== bin output ==="
+          Get-ChildItem bin -Recurse -File | Where-Object { $_.Extension -ne ".obj" -and $_.Extension -ne ".pdb" } |
+            Select-Object FullName, @{n='Size(KB)';e={[math]::Round($_.Length/1KB,1)}} | Format-Table -AutoSize
+
+      - name: Upload exe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FluentZero-x64-Release
+          path: bin/x64/Release/FluentZero.exe
+          retention-days: 30
+          if-no-files-found: error
