@@ -99,8 +99,7 @@ if ($w -lt 20 -or $h -lt 20) { throw "窗口尺寸异常 ${w}x${h}" }
 # CopyFromScreen 截窗口区域（NOREDIRECTIONBITMAP 内容 DWM 已合成到屏幕）
 $bmp = New-Object System.Drawing.Bitmap($w, $h)
 $g = [System.Drawing.Graphics]::FromImage($bmp)
-$g.CopyFromScreen($rect.l, $rect.t, 0, 0, (New-Object System.Drawing.Size($w, $h)),
-                 [System.Drawing.CopyPixelOperation]::SrcCopy)
+$g.CopyFromScreen($rect.l, $rect.t, 0, 0, (New-Object System.Drawing.Size($w, $h)))
 $g.Dispose()
 $bmp.Save($shotPath, [System.Drawing.Imaging.ImageFormat]::Png)
 $bmp.Dispose()
