@@ -42,17 +42,36 @@ namespace fz {
 static inline float Clamp01(float t) { return t < 0 ? 0 : (t > 1 ? 1 : t); }
 static inline float EaseOut(float t) { float u = 1 - Clamp01(t); return 1 - u * u * u; }
 
-static inline D2D1::Color4 Premul(D2D1::Color4 c) {
-    return D2D1::Color4(c.r * c.a, c.g * c.a, c.b * c.a, c.a);
+static inline D2D1_COLOR_F Premul(D2D1_COLOR_F c) {
+    D2D1_COLOR_F o = c;
+    o.r *= c.a; o.g *= c.a; o.b *= c.a;
+    return o;
 }
 
-static inline D2D1::Color4 Brighten(D2D1::Color4 c, float amt) {
-    return D2D1::Color4(min(1.0f, c.r * (1 + amt)),
-                  min(1.0f, c.g * (1 + amt)),
-                  min(1.0f, c.b * (1 + amt)), c.a);
+static inline D2D1_COLOR_F Brighten(D2D1_COLOR_F c, float amt) {
+    D2D1_COLOR_F o = c;
+    o.r = min(1.0f, o.r * (1 + amt));
+    o.g = min(1.0f, o.g * (1 + amt));
+    o.b = min(1.0f, o.b * (1 + amt));
+    return o;
 }
 
-static std::wstring HexOf(D2D1::Color4 c) {
+// 圆角矩形（C 风格结构体，跨 SDK 版本稳定）
+static inline D2D1_ROUNDED_RECT_F FzRR(float l, float t, float r, float b, float rad) {
+    D2D1_ROUNDED_RECT_F rc{};
+    rc.rect.left = l; rc.rect.top = t; rc.rect.right = r; rc.rect.bottom = b;
+    rc.radiusX = rad; rc.radiusY = rad;
+    return rc;
+}
+
+// 颜色构造辅助
+static inline D2D1_COLOR_F FzCol(float r, float g, float b, float a = 1.0f) {
+    D2D1_COLOR_F c{};
+    c.r = r; c.g = g; c.b = b; c.a = a;
+    return c;
+}
+
+static std::wstring HexOf(D2D1_COLOR_F c) {
     char buf[8];
     sprintf_s(buf, "#%02X%02X%02X",
               (int)(c.r * 255 + 0.5f), (int)(c.g * 255 + 0.5f), (int)(c.b * 255 + 0.5f));
@@ -61,7 +80,7 @@ static std::wstring HexOf(D2D1::Color4 c) {
 
 // ------------------------------ 系统设置读取 -------------------------------
 // 强调色：HKCU\Software\Microsoft\Windows\CurrentVersion\ThemeManager\AccentColor (REG_DWORD)
-static D2D1::Color4 ReadAccent() {
+static D2D1_COLOR_F ReadAccent() {
     HKEY k = nullptr;
     if (RegOpenKeyExW(HKEY_CURRENT_USER,
             L"Software\\Microsoft\\Windows\\CurrentVersion\\ThemeManager",
@@ -73,13 +92,18 @@ static D2D1::Color4 ReadAccent() {
             v &= 0x00FFFFFF;
             v = ((v >> 16) & 0xFF) | ((v >> 8) & 0xFF00) | ((v & 0xFF) << 16);
             RegCloseKey(k);
-            return D2D1::Color4(((v >> 16) & 0xFF) / 255.0f,
-                          ((v >> 8) & 0xFF) / 255.0f,
-                          (v & 0xFF) / 255.0f, 1.0f);
+            D2D1_COLOR_F c{};
+            c.r = ((v >> 16) & 0xFF) / 255.0f;
+            c.g = ((v >> 8) & 0xFF) / 255.0f;
+            c.b = (v & 0xFF) / 255.0f;
+            c.a = 1.0f;
+            return c;
         }
         RegCloseKey(k);
     }
-    return D2D1::Color4(0 / 255.0f, 0x78 / 255.0f, 0xD7 / 255.0f, 1.0f); // 默认 #0078D7
+    D2D1_COLOR_F def{};
+    def.r = 0; def.g = 0x78 / 255.0f; def.b = 0xD7 / 255.0f; def.a = 1.0f;
+    return def; // 默认 #0078D7
 }
 
 static bool SystemPrefersLight() {
@@ -99,44 +123,44 @@ static bool SystemPrefersLight() {
 // ------------------------------ Fluent 主题 --------------------------------
 struct FluentTheme {
     bool light = true;
-    D2D1::Color4 bg;            // Acrylic 底色（带 alpha，模糊从透明处透出）
-    D2D1::Color4 card;
-    D2D1::Color4 cardBorder;
-    D2D1::Color4 text1;         // 主文字
-    D2D1::Color4 text2;         // 次级文字
-    D2D1::Color4 textOnAccent;
-    D2D1::Color4 accent;
-    D2D1::Color4 btnFill;
-    D2D1::Color4 btnBorder;
-    D2D1::Color4 btnText;
-    D2D1::Color4 reveal;        // Reveal 描边颜色
+    D2D1_COLOR_F bg;            // Acrylic 底色（带 alpha，模糊从透明处透出）
+    D2D1_COLOR_F card;
+    D2D1_COLOR_F cardBorder;
+    D2D1_COLOR_F text1;         // 主文字
+    D2D1_COLOR_F text2;         // 次级文字
+    D2D1_COLOR_F textOnAccent;
+    D2D1_COLOR_F accent;
+    D2D1_COLOR_F btnFill;
+    D2D1_COLOR_F btnBorder;
+    D2D1_COLOR_F btnText;
+    D2D1_COLOR_F reveal;        // Reveal 描边颜色
 
     static FluentTheme Create() {
         FluentTheme t;
         t.light = SystemPrefersLight();
         t.accent = ReadAccent();
         if (t.light) {
-            t.bg           = D2D1::Color4(0.957f, 0.957f, 0.957f, 0.55f);  // #F4F4F4 @55%
-            t.card         = D2D1::Color4(1, 1, 1, 0.90f);
-            t.cardBorder   = D2D1::Color4(0, 0, 0, 0.08f);
-            t.text1        = D2D1::Color4(0, 0, 0, 0.96f);
-            t.text2        = D2D1::Color4(0, 0, 0, 0.55f);
-            t.textOnAccent = D2D1::Color4(1, 1, 1, 1);
-            t.btnFill      = D2D1::Color4(0.98f, 0.98f, 0.98f, 0.95f);
-            t.btnBorder    = D2D1::Color4(0, 0, 0, 0.10f);
-            t.btnText      = D2D1::Color4(0, 0, 0, 0.96f);
-            t.reveal       = D2D1::Color4(0, 0, 0, 0.30f);
+            t.bg           = FzCol(0.957f, 0.957f, 0.957f, 0.55f);  // #F4F4F4 @55%
+            t.card         = FzCol(1, 1, 1, 0.90f);
+            t.cardBorder   = FzCol(0, 0, 0, 0.08f);
+            t.text1        = FzCol(0, 0, 0, 0.96f);
+            t.text2        = FzCol(0, 0, 0, 0.55f);
+            t.textOnAccent = FzCol(1, 1, 1, 1);
+            t.btnFill      = FzCol(0.98f, 0.98f, 0.98f, 0.95f);
+            t.btnBorder    = FzCol(0, 0, 0, 0.10f);
+            t.btnText      = FzCol(0, 0, 0, 0.96f);
+            t.reveal       = FzCol(0, 0, 0, 0.30f);
         } else {
-            t.bg           = D2D1::Color4(0.125f, 0.125f, 0.125f, 0.60f); // #202020
-            t.card         = D2D1::Color4(0.17f, 0.17f, 0.17f, 0.90f);
-            t.cardBorder   = D2D1::Color4(1, 1, 1, 0.08f);
-            t.text1        = D2D1::Color4(1, 1, 1, 0.96f);
-            t.text2        = D2D1::Color4(1, 1, 1, 0.55f);
-            t.textOnAccent = D2D1::Color4(1, 1, 1, 1);
-            t.btnFill      = D2D1::Color4(0.20f, 0.20f, 0.20f, 0.95f);
-            t.btnBorder    = D2D1::Color4(1, 1, 1, 0.10f);
-            t.btnText      = D2D1::Color4(1, 1, 1, 0.96f);
-            t.reveal       = D2D1::Color4(1, 1, 1, 0.30f);
+            t.bg           = FzCol(0.125f, 0.125f, 0.125f, 0.60f); // #202020
+            t.card         = FzCol(0.17f, 0.17f, 0.17f, 0.90f);
+            t.cardBorder   = FzCol(1, 1, 1, 0.08f);
+            t.text1        = FzCol(1, 1, 1, 0.96f);
+            t.text2        = FzCol(1, 1, 1, 0.55f);
+            t.textOnAccent = FzCol(1, 1, 1, 1);
+            t.btnFill      = FzCol(0.20f, 0.20f, 0.20f, 0.95f);
+            t.btnBorder    = FzCol(1, 1, 1, 0.10f);
+            t.btnText      = FzCol(1, 1, 1, 0.96f);
+            t.reveal       = FzCol(1, 1, 1, 0.30f);
         }
         return t;
     }
@@ -162,7 +186,7 @@ struct Renderer {
     ComPtr<IDXGISwapChain1> swap;
     ComPtr<ID2D1Device> d2dDevice;
     ComPtr<ID2D1DeviceContext> dc;
-    ComPtr<D2D1::ID2D1Bitmap1> backBuf;
+    ComPtr<ID2D1Bitmap1> backBuf;
     ComPtr<IDWriteFactory> dw;
     bool ok = false;
 
@@ -323,7 +347,7 @@ public:
         ComPtr<IDWriteTextLayout> lay;
         if (FAILED(r.dw->CreateTextLayout(t.c_str(), (UINT32)t.size(), f.Get(), 1e6f, 1e6f, &lay)))
             return (float)t.size() * size * 0.6f;
-        D2D1::SIZE_F sz;
+        D2D1_SIZE_F sz;
         lay->GetMetrics(&sz);
         return sz.width;
     }
@@ -370,14 +394,14 @@ public:
     }
 
     // ------------------------------ 文本辅助 ------------------------------
-    ComPtr<ID2D1SolidColorBrush> MakeBrush(D2D1::Color4 c) {
+    ComPtr<ID2D1SolidColorBrush> MakeBrush(D2D1_COLOR_F c) {
         ComPtr<ID2D1SolidColorBrush> b;
         r.dc->CreateSolidColorBrush(Premul(c), &b);
         return b;
     }
 
     void DrawText(const std::wstring& t, float x, float y, float maxW,
-                  const wchar_t* face, float size, DWRITE_FONT_WEIGHT weight, D2D1::Color4 c) {
+                  const wchar_t* face, float size, DWRITE_FONT_WEIGHT weight, D2D1_COLOR_F c) {
         if (!r.dw) return;
         ComPtr<IDWriteTextFormat> f;
         if (FAILED(r.dw->CreateTextFormat(face, nullptr, weight, DWRITE_FONT_STYLE_NORMAL,
@@ -386,7 +410,9 @@ public:
         ComPtr<IDWriteTextLayout> lay;
         if (FAILED(r.dw->CreateTextLayout(t.c_str(), (UINT32)t.size(), f.Get(), maxW, 1e6f, &lay)))
             return;
-        r.dc->DrawTextLayout(D2D1::Point2F(x, y), lay.Get(), MakeBrush(c).Get());
+        D2D1_POINT_2F p{};
+        p.x = x; p.y = y;
+        r.dc->DrawTextLayout(p, lay.Get(), MakeBrush(c).Get());
     }
 
     // ------------------------------ 绘制 ------------------------------
@@ -394,32 +420,30 @@ public:
         float s = dpiScale;
         float h = EaseOut(b.hoverT), p = EaseOut(b.pressT), rv = EaseOut(b.revealT);
 
-        D2D1::Color4 fill = b.primary ? th.accent : th.btnFill;
+        D2D1_COLOR_F fill = b.primary ? th.accent : th.btnFill;
         fill.a = 1;
         fill = Brighten(fill, 0.04f * h);   // hover 提亮 4%
         fill = Brighten(fill, -0.08f * p);  // pressed 压暗 8%
-        D2D1::Color4 txt = b.primary ? th.textOnAccent : th.btnText;
+        D2D1_COLOR_F txt = b.primary ? th.textOnAccent : th.btnText;
 
         float r3 = 3 * s;
         // 填充
         r.dc->FillRoundedRectangle(
-            D2D1::RoundedRect(D2D1::Point2F(b.x, b.y), D2D1::Point2F(b.x + b.w, b.y + b.h), r3, r3),
+            FzRR(b.x, b.y, b.x + b.w, b.y + b.h, r3),
             MakeBrush(fill).Get());
         // 边框（Win10 普通按钮有 1px 描边）
         if (!b.primary) {
             r.dc->DrawRoundedRectangle(
-                D2D1::RoundedRect(D2D1::Point2F(b.x + 0.5f, b.y + 0.5f),
-                                  D2D1::Point2F(b.x + b.w - 0.5f, b.y + b.h - 0.5f), r3, r3),
+                FzRR(b.x + 0.5f, b.y + 0.5f, b.x + b.w - 0.5f, b.y + b.h - 0.5f, r3),
                 MakeBrush(th.btnBorder).Get(), 1);
         }
 
         // Reveal 描边：整圈描边，alpha 随 revealT 渐入（Win10 Reveal 观感近似）
         if (rv > 0.003f) {
-            D2D1::Color4 rc_ = th.reveal;
+            D2D1_COLOR_F rc_ = th.reveal;
             rc_.a = rc_.a * rv;
             r.dc->DrawRoundedRectangle(
-                D2D1::RoundedRect(D2D1::Point2F(b.x + 0.5f, b.y + 0.5f),
-                                  D2D1::Point2F(b.x + b.w - 0.5f, b.y + b.h - 0.5f), r3, r3),
+                FzRR(b.x + 0.5f, b.y + 0.5f, b.x + b.w - 0.5f, b.y + b.h - 0.5f, r3),
                 MakeBrush(rc_).Get(), 1.5f * s);
         }
 
@@ -461,17 +485,15 @@ public:
 
         // 4) 信息卡
         r.dc->FillRoundedRectangle(
-            D2D1::RoundedRect(D2D1::Point2F(cardX, cardY), D2D1::Point2F(cardX + cardW, cardY + cardH), 6 * s, 6 * s),
+            FzRR(cardX, cardY, cardX + cardW, cardY + cardH, 6 * s),
             MakeBrush(th.card).Get());
         r.dc->DrawRoundedRectangle(
-            D2D1::RoundedRect(D2D1::Point2F(cardX + 0.5f, cardY + 0.5f),
-                              D2D1::Point2F(cardX + cardW - 0.5f, cardY + cardH - 0.5f), 6 * s, 6 * s),
+            FzRR(cardX + 0.5f, cardY + 0.5f, cardX + cardW - 0.5f, cardY + cardH - 0.5f, 6 * s),
             MakeBrush(th.cardBorder).Get(), 1);
         // 强调色色块
         r.dc->FillRoundedRectangle(
-            D2D1::RoundedRect(D2D1::Point2F(cardX + 16 * s, cardY + 16 * s),
-                              D2D1::Point2F(cardX + 16 * s + 36 * s, cardY + 16 * s + 36 * s), 3 * s, 3 * s),
-            MakeBrush(D2D1::Color4(th.accent.r, th.accent.g, th.accent.b, 1)).Get());
+            FzRR(cardX + 16 * s, cardY + 16 * s, cardX + 16 * s + 36 * s, cardY + 16 * s + 36 * s, 3 * s),
+            MakeBrush(FzCol(th.accent.r, th.accent.g, th.accent.b, 1)).Get());
         float tx = cardX + 16 * s + 36 * s + 16 * s;
         DrawText(detailAccent, tx, cardY + 18 * s, W, L"Consolas", 13 * s,
                  DWRITE_FONT_WEIGHT_NORMAL, th.text1);
