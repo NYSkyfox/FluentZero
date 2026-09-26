@@ -562,12 +562,15 @@ public:
         } else {
             self = (App*)GetWindowLongPtrW(h, GWLP_USERDATA);
         }
-        if (self) return self->WndProc(m, w, l);
+        if (self) return self->WndProc(h, m, w, l);
         return DefWindowProcW(h, m, w, l);
     }
 
-    LRESULT WndProc(UINT m, WPARAM w, LPARAM l) {
+    LRESULT WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         switch (m) {
+        case WM_NCCREATE:
+        case WM_CREATE:
+            return 0;  // 创建阶段必须返回 0（成功），否则 CreateWindowExW 失败
         case WM_GETMINMAXINFO: {
             auto* mm = (MINMAXINFO*)l;
             mm->ptMinTrackSize.x = 560;
@@ -609,7 +612,7 @@ public:
             PostQuitMessage(0);
             return 0;
         }
-        return DefWindowProcW(hwnd, m, w, l);
+        return DefWindowProcW(h, m, w, l);
     }
 };
 
