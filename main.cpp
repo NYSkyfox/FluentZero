@@ -190,6 +190,17 @@ static void FzLog(const wchar_t* msg) {
         CloseHandle(h);
     }
 }
+// 诊断：记录 WndProc 收到的每个消息及返回值
+static void FzLogMsg(UINT m, int hasSelf, long long h, long long ret) {
+    HANDLE f = CreateFileW(L"fz_debug.txt", FILE_APPEND_DATA, 0, nullptr,
+                           OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (f != INVALID_HANDLE_VALUE) {
+        wchar_t buf[128];
+        _snwprintf_s(buf, 128, L"[msg] m=%u self=%d h=%p ret=%I64d\r\n", m, hasSelf, (void*)h, ret);
+        DWORD w; WriteFile(f, buf, (DWORD)wcslen(buf) * 2, &w, nullptr);
+        CloseHandle(f);
+    }
+}
 struct Renderer {
     ComPtr<ID2D1Factory> d2dFactory;
     ComPtr<ID2D1HwndRenderTarget> rt;
@@ -562,8 +573,14 @@ public:
         } else {
             self = (App*)GetWindowLongPtrW(h, GWLP_USERDATA);
         }
-        if (self) return self->WndProc(h, m, w, l);
-        return DefWindowProcW(h, m, w, l);
+        LRESULT r;
+        if (self) r = self->WndProc(h, m, w, l);
+        else r = DefWindowProcW(h, m, w, l);
+        // 只记录创建/初始化阶段的消息（避免日志爆炸）
+        if (m == WM_NCCREATE || m == WM_CREATE || m == WM_NCACTIVATE || m == WM_ACTIVATE ||
+            m == WM_SIZE || m == WM_PAINT || m == WM_ERASEBKGND || m == WM_DESTROY || m <= 0x0010)
+            FzLogMsg(m, (self ? 1 : 0), (long long)h, (long long)r);
+        return r;
     }
 
     LRESULT WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
