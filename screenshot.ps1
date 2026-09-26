@@ -1,7 +1,8 @@
-# FluentZero CI 截图脚本
-# 1) 启动 exe，等窗口
-# 2) 主窗口(class=FluentZeroWnd)在 -> PrintWindow 抓 D2D 内容
-# 3) 不在 -> app.Create() 失败弹了 MessageBox：读 fz_debug.txt 打印失败步骤，截整屏作证据
+# FluentZero CI 截图脚本 v3
+# 关键点：
+#   - FindWindow 是 user32 的宏（真实导出 FindWindowW/A），P/Invoke 必须 EntryPoint="FindWindowW"
+#     本脚本改用 EnumWindows 按类名找窗口（EnumWindows 是真实导出，最可靠）
+#   - NOREDIRECTIONBITMAP 窗口内容由 DWM 合成到屏幕，用 CopyFromScreen 截窗口区域
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
@@ -10,24 +11,34 @@ $exe = Join-Path $PWD "bin\x64\Release\FluentZero.exe"
 if (-not (Test-Path $exe)) { throw "exe not found: $exe" }
 
 $proc = Start-Process -FilePath $exe -WorkingDirectory $PWD -PassThru
-Start-Sleep -Seconds 4
 
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
 public class FzW {
+    public static IntPtr found = IntPtr.Zero;
     [StructLayout(LayoutKind.Sequential)] public struct RECT { public int l, t, r, b; }
-    [DllImport("user32.dll")] public static extern IntPtr FindWindow(string cls, string title);
-    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
-    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int cmd);
-    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
-    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
-    [DllImport("user32.dll")] public static extern int GetClassName(IntPtr h, StringBuilder s, int max);
-    [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr h, StringBuilder s, int max);
-    [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr hdc, uint flags);
+    [DllImport("user32.dll", EntryPoint="GetClassNameW", CharSet=CharSet.Unicode)]
+    public static extern int GetClassName(IntPtr h, StringBuilder s, int max);
+    [DllImport("user32.dll", EntryPoint="GetWindowTextW", CharSet=CharSet.Unicode)]
+    public static extern int GetWindowText(IntPtr h, StringBuilder s, int max);
     public delegate bool EnumCB(IntPtr h, IntPtr l);
     [DllImport("user32.dll")] public static extern bool EnumWindows(EnumCB cb, IntPtr l);
+    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
+    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int cmd);
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+    public static IntPtr FindByClass(string cls) {
+        found = IntPtr.Zero;
+        EnumWindows((h, l) => {
+            var sb = new StringBuilder(256);
+            GetClassName(h, sb, 256);
+            if (sb.ToString() == cls) { found = h; return false; }
+            return true;
+        }, IntPtr.Zero);
+        return found;
+    }
     public static void Dump() {
         EnumWindows((h, l) => {
             if (IsWindowVisible(h)) {
@@ -41,11 +52,18 @@ public class FzW {
 }
 "@
 
+# 轮询等待窗口出现（最多 12 秒）
+$hwnd = [IntPtr]::Zero
+for ($i = 0; $i -lt 24; $i++) {
+    Start-Sleep -Milliseconds 500
+    $hwnd = [FzW]::FindByClass("FluentZeroWnd")
+    if ($hwnd -ne [IntPtr]::Zero) { break }
+}
+
 $shotPath = Join-Path $PWD "fluentzero_screenshot.png"
-$hwnd = [FzW]::FindWindow("FluentZeroWnd", $null)
 
 if ($hwnd -eq [IntPtr]::Zero) {
-    Write-Host "!!! 主窗口未出现 —— app.Create() 可能失败，打印诊断:"
+    Write-Host "!!! 主窗口未出现 —— 打印诊断:"
     foreach ($f in @("fz_crash.txt", "fz_debug.txt")) {
         $p = Join-Path $PWD $f
         if (Test-Path $p) {
@@ -54,7 +72,7 @@ if ($hwnd -eq [IntPtr]::Zero) {
             Write-Host ("=" * (6 + $f.Length))
         }
     }
-    Write-Host "可见窗口列表:"
+    Write-Host "可见窗口:"
     [FzW]::Dump()
     $screen = [System.Windows.Forms.SystemInformation]::VirtualScreen
     $bmp = New-Object System.Drawing.Bitmap($screen.Width, $screen.Height)
@@ -63,29 +81,27 @@ if ($hwnd -eq [IntPtr]::Zero) {
     $g.Dispose()
     $bmp.Save($shotPath, [System.Drawing.Imaging.ImageFormat]::Png)
     $bmp.Dispose()
-    Write-Host "已保存整屏截图（含失败 MessageBox）: $shotPath"
     Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-    throw "FluentZero 主窗口未创建（初始化失败）"
+    throw "FluentZero 主窗口未创建"
 }
 
-Write-Host "找到主窗口 handle=$hwnd，用 PrintWindow 抓 D2D 内容"
+Write-Host "找到窗口 handle=$hwnd"
 [FzW]::ShowWindow($hwnd, 9) | Out-Null
 [FzW]::SetForegroundWindow($hwnd) | Out-Null
-Start-Sleep -Seconds 1
+Start-Sleep -Milliseconds 800   # 等重绘稳定
 
 $rect = New-Object FzW+RECT
 [FzW]::GetWindowRect($hwnd, [ref]$rect) | Out-Null
 $w = $rect.r - $rect.l; $h = $rect.b - $rect.t
 Write-Host "窗口矩形: ($($rect.l),$($rect.t)) ${w}x${h}"
+if ($w -lt 20 -or $h -lt 20) { throw "窗口尺寸异常 ${w}x${h}" }
 
+# CopyFromScreen 截窗口区域（NOREDIRECTIONBITMAP 内容 DWM 已合成到屏幕）
 $bmp = New-Object System.Drawing.Bitmap($w, $h)
 $g = [System.Drawing.Graphics]::FromImage($bmp)
-$hdc = $g.GetHdc()
-$ok = [FzW]::PrintWindow($hwnd, $hdc, 2)   # PW_RENDERFULLCONTENT
-$g.ReleaseHdc($hdc)
+$g.CopyFromScreen($rect.l, $rect.t, 0, 0, (New-Object System.Drawing.Size($w, $h)),
+                 [System.Drawing.CopyPixelOperation]::SrcCopy)
 $g.Dispose()
-Write-Host "PrintWindow 返回: $ok"
-
 $bmp.Save($shotPath, [System.Drawing.Imaging.ImageFormat]::Png)
 $bmp.Dispose()
 Write-Host ("已保存截图: {0} ({1} KB)" -f $shotPath, [math]::Round((Get-Item $shotPath).Length/1KB, 1))
