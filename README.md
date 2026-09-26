@@ -104,6 +104,49 @@ HWND（WS_EX_NOREDIRECTIONBITMAP，保留原生标题栏）
 
 ## 路线图（MVP → 完整版，预估 2,000–3,500 行 / 2–3 周）
 
+### 控件完成度对照（对标 Windows 10 UWP 控件库）
+
+> 说明：Fluent Design 本身是设计语言，不定义控件数量。下表对标 2018 年承载它的
+> Windows 10 UWP 控件库（`Windows.UI.Xaml.Controls`），标出本项目的手搓覆盖进度。
+
+**核心交互控件**
+
+| 控件 | 状态 | 备注 |
+|---|:---:|---|
+| Button | ✅ | 含 primary 强调色变体 + Reveal 悬停 |
+| ToggleSwitch | ⏳ | |
+| CheckBox | ⏳ | |
+| RadioButton | ⏳ | |
+| ComboBox | ⏳ | 含弹出层，较复杂 |
+| Slider | ⏳ | 含拖拽 thumb |
+| TextBox / PasswordBox | ❌ | 需 IME，手搓最大坑，有意推迟 |
+| NumberBox / AutoSuggestBox | ❌ | 低优先级 |
+| DatePicker / TimePicker | ❌ | 依赖弹出面板 |
+| ProgressBar / ProgressRing | ⏳ | 纯绘制，相对简单 |
+
+**数据 / 容器控件**
+
+| 控件 | 状态 | 备注 |
+|---|:---:|---|
+| ListView / GridView | ⏳ | 路线图"滚动列表"雏形 |
+| TreeView | ❌ | |
+| DataGrid | ❌ | |
+| Expander / Pivot / SplitView | ❌ | |
+| ScrollViewer | ⏳ | 依赖滚动列表 |
+
+**结构 / 呈现**
+
+| 区块 | 状态 | 备注 |
+|---|:---:|---|
+| Card（信息卡） | ✅ | 当前为布局区块，未抽成独立控件 |
+| 标题 / 副标题（TextBlock） | ✅ | |
+| Border / Grid / StackPanel | — | 由 Core 布局逻辑直接承担，无独立控件抽象 |
+
+**进度小结**：已覆盖核心交互控件中的 **Button（1 个）** + 非交互信息区块（Card），
+其余按上表优先级推进。
+
+### 里程碑
+
 - [ ] 完整版 Reveal（沿边扫过）
 - [ ] CheckBox / ToggleSwitch / RadioButton
 - [ ] 焦点管理（Tab 导航 + 焦点描边）
