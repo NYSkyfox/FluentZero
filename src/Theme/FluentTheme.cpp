@@ -20,6 +20,10 @@ FluentTheme FluentTheme::Create() {
         t.btnBorder    = FzCol(0, 0, 0, 0.10f);
         t.btnText      = FzCol(0, 0, 0, 0.96f);
         t.reveal       = FzCol(0, 0, 0, 0.30f);
+        t.navPane      = FzCol(1, 1, 1, 0.35f);
+        t.navBorder    = FzCol(0, 0, 0, 0.06f);
+        t.navHover     = FzCol(0, 0, 0, 0.06f);
+        t.navSweep     = FzCol(0, 0, 0, 0.05f);
     } else {
         t.bg           = FzCol(0.125f, 0.125f, 0.125f, 0.60f); // #202020
         t.card         = FzCol(0.17f, 0.17f, 0.17f, 0.90f);
@@ -31,6 +35,10 @@ FluentTheme FluentTheme::Create() {
         t.btnBorder    = FzCol(1, 1, 1, 0.10f);
         t.btnText      = FzCol(1, 1, 1, 0.96f);
         t.reveal       = FzCol(1, 1, 1, 0.30f);
+        t.navPane      = FzCol(1, 1, 1, 0.08f);
+        t.navBorder    = FzCol(1, 1, 1, 0.08f);
+        t.navHover     = FzCol(1, 1, 1, 0.08f);
+        t.navSweep     = FzCol(1, 1, 1, 0.12f);
     }
     return t;
 }

@@ -17,6 +17,10 @@ struct FluentTheme {
     D2D1_COLOR_F btnBorder;
     D2D1_COLOR_F btnText;
     D2D1_COLOR_F reveal;        // Reveal 描边颜色
+    D2D1_COLOR_F navPane;       // 侧边导航磨砂底色
+    D2D1_COLOR_F navBorder;     // 侧边导航右侧分割线
+    D2D1_COLOR_F navHover;      // 导航 hover 灰条
+    D2D1_COLOR_F navSweep;      // 导航 Reveal 光带
 
     // 从系统设置（强调色 + 深浅主题）构建完整主题
     static FluentTheme Create();

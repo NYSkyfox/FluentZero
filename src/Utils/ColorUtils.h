@@ -11,6 +11,8 @@ D2D1_COLOR_F Brighten(D2D1_COLOR_F c, float amt);
 D2D1_COLOR_F FzCol(float r, float g, float b, float a = 1.0f);
 // 转 #RRGGBB 字符串
 std::wstring HexOf(D2D1_COLOR_F c);
+// 颜色插值（a→b，t∈[0,1]）
+D2D1_COLOR_F Lerp(D2D1_COLOR_F a, D2D1_COLOR_F b, float t);
 // 构造 D2D1_ROUNDED_RECT（C 风格结构体，跨 SDK 版本稳定）
 D2D1_ROUNDED_RECT FzRR(float l, float t, float r, float b, float rad);
 

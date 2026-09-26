@@ -35,6 +35,8 @@
     <ClCompile Include="src\Rendering\Renderer.cpp"><Filter>src\Rendering</Filter></ClCompile>
     <ClInclude Include="src\UI\Button.h"><Filter>src\UI</Filter></ClInclude>
     <ClCompile Include="src\UI\Button.cpp"><Filter>src\UI</Filter></ClCompile>
+    <ClInclude Include="src\UI\NavPane.h"><Filter>src\UI</Filter></ClInclude>
+    <ClCompile Include="src\UI\NavPane.cpp"><Filter>src\UI</Filter></ClCompile>
     <ClInclude Include="src\Core\App.h"><Filter>src\Core</Filter></ClInclude>
     <ClCompile Include="src\Core\App.cpp"><Filter>src\Core</Filter></ClCompile>
   </ItemGroup>

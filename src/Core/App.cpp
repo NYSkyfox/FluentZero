@@ -5,6 +5,7 @@
 #include "Theme/FluentTheme.h"
 #include "Rendering/Renderer.h"
 #include "UI/Button.h"
+#include "UI/NavPane.h"
 #include "Platform/SystemSettings.h"
 
 #pragma comment(lib, "d2d1.lib")
@@ -40,9 +41,16 @@ HRESULT App::Create() {
     buttons.push_back({ L"Refresh",  0xE895, false });
     buttons.push_back({ L"Add item", 0xE710, true  });
 
+    // 导航项（同样必须先于 CreateWindowExW 填充，防 WM_SIZE 早到越界）
+    navItems.push_back({ L"Home",     0xE80F, 0, 0, 0, false, true  });
+    navItems.push_back({ L"Settings", 0xE713, 0, 0, 0, false, false });
+    navItems.push_back({ L"Accounts", 0xE77B, 0, 0, 0, false, false });
+    navItems.push_back({ L"Network",  0xE839, 0, 0, 0, false, false });
+    pageTitle = L"Home";
+
     hwnd = CreateWindowExW(0, wc.lpszClassName, L"FluentZero",
         WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME,
-        CW_USEDEFAULT, CW_USEDEFAULT, 720, 520,
+        CW_USEDEFAULT, CW_USEDEFAULT, 780, 540,
         nullptr, nullptr, wc.hInstance, this);
     if (!hwnd)
         return E_FAIL;
@@ -66,36 +74,52 @@ HRESULT App::Create() {
 // ==================== 布局 ====================
 
 void App::Layout() {
-    if (buttons.size() < 4) return;   // 防御：buttons 未就绪前不布局
+    if (buttons.size() < 4 || navItems.empty()) return;   // 防御：未就绪前不布局
     RECT rc; GetClientRect(hwnd, &rc);
     float W = rc.right - rc.left, H = rc.bottom - rc.top;
-    float m = 28 * dpiScale;
+    float s = dpiScale;
+
+    // ---- 左侧导航栏 ----
+    navGeo.x = 0; navGeo.y = 0;
+    navGeo.w = 180 * s;
+    navGeo.h = H;
+    float navTop = 48 * s;      // 顶部留白（给窗体标题区）
+    float navItemH = 36 * s;
+    for (int i = 0; i < (int)navItems.size(); i++) {
+        navItems[i].y = navTop + i * navItemH;
+        navItems[i].h = navItemH;
+    }
+
+    // ---- 右侧内容区 ----
+    float m = 28 * s;
+    contentX = navGeo.w + m;
+    float cw = W - contentX - m;   // 内容区可用宽度
     float y = m;
 
-    titleY = y;          y += 40 * dpiScale;
-    subY   = y;          y += 30 * dpiScale;
+    titleY = y;          y += 40 * s;
+    subY   = y;          y += 30 * s;
 
     // 标准按钮行
-    float s = dpiScale, gap = 10 * s, bx = m, by = y;
+    float gap = 10 * s, bx = contentX, by = y;
     for (int i = 0; i < 3; i++) {
         Button& b = buttons[i];
         b.x = bx; b.y = by; b.h = 34 * s;
         float tw = Measure(b.text, L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL);
         float iconW = b.glyph ? 18 * s + 6 * s : 0;
-        b.w = tw + iconW + 28 * s;
+        b.w = Fzmn(cw, tw + iconW + 28 * s);
         bx += b.w + gap;
     }
     y += 34 * s + 12 * s;
 
     // Primary 按钮（强调色）
     Button& pb = buttons[3];
-    pb.x = m; pb.y = y; pb.h = 34 * s;
+    pb.x = contentX; pb.y = y; pb.h = 34 * s;
     float ptw = Measure(pb.text, L"Segoe UI", 13 * s, (DWRITE_FONT_WEIGHT)600);
-    pb.w = ptw + 18 * s + 6 * s + 32 * s;
+    pb.w = Fzmn(cw, ptw + 18 * s + 6 * s + 32 * s);
     y += 34 * s + 24 * s;
 
-    cardX = m; cardY = y;
-    cardW = W - 2 * m;
+    cardX = contentX; cardY = y;
+    cardW = cw;
     cardH = FzMx(110 * s, H - y - m);
     needsDraw = true;
 }
@@ -117,17 +141,20 @@ void App::onDraw() {
     // 1) 背景：Acrylic 半透明主题色
     rt->Clear(Premul(th.bg));
 
-    // 2) 标题 / 副标题
-    DrawText(L"FluentZero", 28 * s, titleY, W, L"Segoe UI", 26 * s,
+    // 2) 左侧导航栏（磨砂面板 + Reveal 交互）
+    DrawNavPane(*this, navGeo, navItems, th, s);
+
+    // 3) 右侧内容区：标题 / 副标题
+    DrawText(pageTitle, contentX, titleY, W - contentX, L"Segoe UI", 26 * s,
              (DWRITE_FONT_WEIGHT)600, th.text1);
     DrawText(L"Windows 10 Fluent Design · 纯 Win32 + Direct2D 手搓 · 零依赖单 exe",
-             28 * s, subY, W, L"Segoe UI", 12 * s, DWRITE_FONT_WEIGHT_NORMAL, th.text2);
+             contentX, subY, W - contentX, L"Segoe UI", 12 * s, DWRITE_FONT_WEIGHT_NORMAL, th.text2);
 
-    // 3) 按钮
+    // 4) 按钮
     for (auto& b : buttons)
         DrawButton(*this, b, th, s);
 
-    // 4) 信息卡
+    // 5) 信息卡
     DrawCard();
 }
 
@@ -164,6 +191,10 @@ void App::OnMove(float x, float y) {
     int hit = HitButton(buttons, x, y);
     for (int i = 0; i < (int)buttons.size(); i++)
         buttons[i].hot = (i == hit);
+    // 导航 hover
+    int nHit = HitNavItem(navGeo, navItems, x, y);
+    for (int i = 0; i < (int)navItems.size(); i++)
+        navItems[i].hot = (i == nHit);
     needsDraw = true;
 }
 
@@ -189,6 +220,15 @@ void App::OnLButtonUp(float x, float y) {
             }
         }
     }
+    // 导航点击选中
+    int nHit = HitNavItem(navGeo, navItems, x, y);
+    if (nHit >= 0 && nHit != navSelected) {
+        for (int i = 0; i < (int)navItems.size(); i++)
+            navItems[i].selected = (i == nHit);
+        navSelected = nHit;
+        pageTitle = navItems[nHit].text;   // 右侧大标题跟随选中项
+        RebuildDetail();
+    }
     needsDraw = true;
 }
 
@@ -198,6 +238,9 @@ void App::Update(float dt) {
     animating = false;
     for (auto& b : buttons)
         if (UpdateButtonAnimation(b, dt))
+            animating = true;
+    for (auto& it : navItems)
+        if (UpdateNavItemAnimation(it, dt))
             animating = true;
 }
 
@@ -277,6 +320,7 @@ LRESULT App::WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         return 0;
     case WM_MOUSELEAVE:
         for (auto& b : buttons) b.hot = false;
+        for (auto& it : navItems) it.hot = false;
         needsDraw = true;
         return 0;
     case WM_LBUTTONDOWN:

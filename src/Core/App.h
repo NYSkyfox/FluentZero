@@ -4,6 +4,7 @@
 // 依赖所有下层：Rendering、UI、Theme、Platform、Utils
 #include "Rendering/Renderer.h"
 #include "UI/Button.h"
+#include "UI/NavPane.h"
 #include "Theme/FluentTheme.h"
 
 namespace fz {
@@ -13,6 +14,9 @@ public:
     HWND hwnd = nullptr;
     FluentTheme th;
     std::vector<Button> buttons;
+    std::vector<NavItem> navItems;
+    NavGeometry navGeo;
+    int navSelected = 0;
     float dpiScale = 1.0f;
 
     // 创建窗口 + 初始化渲染 + 填充按钮
@@ -28,10 +32,12 @@ private:
     bool quit = false;
     int primaryClicks = 0;
     std::wstring detailAccent, detailTheme, detailClicks;
+    std::wstring pageTitle = L"Home";   // 右侧内容区大标题（跟随导航选中项）
 
     // 布局坐标（供 onDraw 使用）
     float titleY = 0, subY = 0;
     float cardX = 0, cardY = 0, cardW = 0, cardH = 0;
+    float contentX = 0;     // 右侧内容区起点（导航栏宽度之后）
 
     // 布局
     void Layout();

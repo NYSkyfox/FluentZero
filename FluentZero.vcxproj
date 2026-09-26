@@ -72,6 +72,8 @@
     <!-- UI 层 -->
     <ClInclude Include="src\UI\Button.h" />
     <ClCompile Include="src\UI\Button.cpp" />
+    <ClInclude Include="src\UI\NavPane.h" />
+    <ClCompile Include="src\UI\NavPane.cpp" />
     <!-- Core 层 -->
     <ClInclude Include="src\Core\App.h" />
     <ClCompile Include="src\Core\App.cpp" />
