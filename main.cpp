@@ -17,9 +17,10 @@
 //  渲染架构（Win10 1607+ / Win11 通用）：
 //    HWND（WS_EX_NOREDIRECTIONBITMAP，保留原生标题栏）
 //        ├── DwmEnableBlurBehindWindow -> DWM 模糊窗口后方的桌面内容
-//        └── DXGI flip swap chain（SetHwnd 绑定，预乘 alpha）
-//              └── ID2D1DeviceContext1（背面缓冲上绘制）
-//                   半透明像素 -> DWM 合成时把模糊透出 = Acrylic
+//        └── D2D1 HwndRenderTarget（1.0 共享工厂，B8G8R8A8 预乘 alpha）
+//              半透明像素 -> DWM 合成时把模糊透出 = Acrylic
+//
+//  依赖：win32 / d2d1.dll / dwrite.dll / dwmapi.dll（全部系统自带）
 //
 //  演示的 Win10 Fluent 要素：
 //    1. Acrylic 模糊背景 + 主题底色（浅 #F4F4F4 / 深 #202020）
@@ -179,28 +180,6 @@ struct Button {
 // ------------------------------ 渲染后端 -----------------------------------
 // Win32 经典路径：WS_EX_NOREDIRECTIONBITMAP + D2D1 HwndRenderTarget（共享工厂）
 // 背景用 0x00000000 Clear：DWM 处半透明处透出 BlurBehind 模糊 = Acrylic
-// 诊断：初始化失败时写步骤到 exe 同目录 fz_debug.txt
-static void FzLog(const wchar_t* msg) {
-    HANDLE h = CreateFileW(L"fz_debug.txt", FILE_APPEND_DATA, 0, nullptr,
-                           OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (h != INVALID_HANDLE_VALUE) {
-        std::wstring line = std::wstring(L"[step] ") + msg + L"  (LastError=" +
-            std::to_wstring(GetLastError()) + L")\r\n";
-        DWORD w; WriteFile(h, line.c_str(), (DWORD)line.size() * 2, &w, nullptr);
-        CloseHandle(h);
-    }
-}
-// 诊断：记录 WndProc 收到的每个消息及返回值
-static void FzLogMsg(UINT m, int hasSelf, long long h, long long ret) {
-    HANDLE f = CreateFileW(L"fz_debug.txt", FILE_APPEND_DATA, 0, nullptr,
-                           OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (f != INVALID_HANDLE_VALUE) {
-        wchar_t buf[128];
-        _snwprintf_s(buf, 128, L"[msg] m=%u self=%d h=%p ret=%I64d\r\n", m, hasSelf, (void*)h, ret);
-        DWORD w; WriteFile(f, buf, (DWORD)wcslen(buf) * 2, &w, nullptr);
-        CloseHandle(f);
-    }
-}
 struct Renderer {
     ComPtr<ID2D1Factory> d2dFactory;
     ComPtr<ID2D1HwndRenderTarget> rt;
@@ -221,7 +200,8 @@ struct Renderer {
         bb.fEnable = TRUE;
         if (SUCCEEDED(DwmEnableBlurBehindWindow(hwnd, &bb))) ok = true;
         // 3) D2D1 工厂（1.0 只有 SINGLE / MULTI_THREADED 两种）
-        if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, d2dFactory.GetAddressOf()))) { FzLog(L"D2D1CreateFactory"); return E_FAIL; }
+        if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, d2dFactory.GetAddressOf())))
+            return E_FAIL;
         // 4) 手搓渲染目标属性（不依赖 d2d1helper.h 的 C++ 辅助函数）
         D2D1_RENDER_TARGET_PROPERTIES rtp{};
         rtp.type = D2D1_RENDER_TARGET_TYPE_DEFAULT;
@@ -234,10 +214,12 @@ struct Renderer {
         hrp.hwnd = hwnd;
         hrp.pixelSize.width = (UINT32)w; hrp.pixelSize.height = (UINT32)h;
         hrp.presentOptions = D2D1_PRESENT_OPTIONS_NONE;
-        if (FAILED(d2dFactory->CreateHwndRenderTarget(rtp, hrp, &rt))) { FzLog(L"CreateHwndRenderTarget"); return E_FAIL; }
+        if (FAILED(d2dFactory->CreateHwndRenderTarget(rtp, hrp, &rt)))
+            return E_FAIL;
         // 5) DirectWrite
         if (FAILED(DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED,
-                __uuidof(IDWriteFactory), (IUnknown**)dw.GetAddressOf()))) { FzLog(L"DWriteCreateFactory"); return E_FAIL; }
+                __uuidof(IDWriteFactory), (IUnknown**)dw.GetAddressOf())))
+            return E_FAIL;
         return S_OK;
     }
     void Resize(HWND hwnd, int w, int h) {
@@ -281,10 +263,10 @@ public:
         wc.lpszClassName = L"FluentZeroWnd";
         wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
         wc.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);  // 合法空刷，防 DefWindowProc 访问空句柄崩溃
-        if (!RegisterClassExW(&wc)) { FzLog(L"RegisterClassExW failed"); return E_FAIL; }
+        if (!RegisterClassExW(&wc))
+            return E_FAIL;
 
         th = FluentTheme::Create();
-        FzLog(L"after_theme");
 
         // 按钮必须先于 CreateWindowExW 填充：
         // CreateWindowExW / ShowWindow 会同步发 WM_SIZE -> Layout() 访问 buttons[i]，
@@ -298,27 +280,23 @@ public:
             WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME,
             CW_USEDEFAULT, CW_USEDEFAULT, 720, 520,
             nullptr, nullptr, wc.hInstance, this);
-        if (!hwnd) { FzLog(L"CreateWindowExW failed"); return E_FAIL; }
-        FzLog(L"after_createwindow");
+        if (!hwnd)
+            return E_FAIL;
 
         // DPI
         HMONITOR mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
         UINT dpi = 96;
         if (pGetDpi) pGetDpi(mon, 0 /*MDT_EFFECTIVE_DPI*/, nullptr, &dpi);
         dpiScale = dpi / 96.0f;
-        FzLog(L"after_dpi");
 
         RECT rc; GetClientRect(hwnd, &rc);
-        if (FAILED(Init(hwnd, rc.right - rc.left, rc.bottom - rc.top))) { FzLog(L"Renderer::Init failed"); return E_FAIL; }
-        FzLog(L"after_init");
+        if (FAILED(Init(hwnd, rc.right - rc.left, rc.bottom - rc.top)))
+            return E_FAIL;
         ShowWindow(hwnd, SW_SHOW);
-        FzLog(L"after_showwindow");
         UpdateWindow(hwnd);
-        FzLog(L"after_updatewindow");
 
         Layout();
         RebuildDetail();
-        FzLog(L"after_layout");
         lastT = (float)GetTickCount64();
         return S_OK;
     }
@@ -583,9 +561,6 @@ public:
         } else {
             self = (App*)GetWindowLongPtrW(h, GWLP_USERDATA);
         }
-        // 记录“进入”的消息（前 120 条），崩溃前最后一条即崩溃点
-        static int msgCount = 0;
-        if (msgCount < 120) { FzLogMsg(m, (self ? 1 : 0), (long long)h, -1); msgCount++; }
         if (self) return self->WndProc(h, m, w, l);
         return DefWindowProcW(h, m, w, l);
     }
@@ -652,31 +627,10 @@ public:
 BOOL (WINAPI *App::pGetDpi)(HMONITOR, DWORD, UINT*, UINT*) = nullptr;
 
 } // namespace fz
-// ------------------------------ 崩溃诊断 ------------------------------------
-// 未处理异常时写 fz_crash.txt：异常代码 + 地址 + (AV 的读/写类型)
-static LONG WINAPI FzCrashHandler(EXCEPTION_POINTERS* ep) {
-    HANDLE f = CreateFileW(L"fz_crash.txt", GENERIC_WRITE, 0, nullptr,
-                           CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (f != INVALID_HANDLE_VALUE) {
-        const EXCEPTION_RECORD* r = ep->ExceptionRecord;
-        unsigned acc = (r->ExceptionCode == EXCEPTION_ACCESS_VIOLATION &&
-                        r->NumberParameters > 1) ? (unsigned)r->ExceptionInformation[0] : 0;
-        unsigned addr = (r->ExceptionCode == EXCEPTION_ACCESS_VIOLATION &&
-                        r->NumberParameters > 2) ? (unsigned)r->ExceptionInformation[1] : 0;
-        wchar_t b[192];
-        int n = _snwprintf_s(b, 192, _TRUNCATE,
-            L"[crash] code=0x%08X addr=%p accessType=%u accessAddr=0x%X\r\n",
-            (unsigned)r->ExceptionCode, (void*)r->ExceptionAddress, acc, addr);
-        DWORD w; WriteFile(f, b, (DWORD)(n * 2), &w, nullptr);
-        CloseHandle(f);
-    }
-    return EXCEPTION_EXECUTE_HANDLER;
-}
 
 
 // ------------------------------ 入口 ----------------------------------------
 int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
-    SetUnhandledExceptionFilter(FzCrashHandler);
     // 运行时解析 GetDpiForMonitor（Win8.1+ 均有，避免链接期依赖）
     fz::App::pGetDpi = (decltype(fz::App::pGetDpi))
         GetProcAddress(GetModuleHandleW(L"user32.dll"), "GetDpiForMonitor");
