@@ -35,3 +35,5 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+
+using namespace Microsoft::WRL;   // ComPtr<T>（全局使用，避免每处写全名）
