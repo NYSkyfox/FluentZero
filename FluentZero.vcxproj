@@ -50,13 +50,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <!-- 预编译头 -->
-    <ClInclude Include="src\pch.h" />
-    <ClCompile Include="src\pch.cpp">
+    <!-- 预编译头 + 入口（项目根目录） -->
+    <ClInclude Include="pch.h" />
+    <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)'=='Release'">Create</PrecompiledHeader>
     </ClCompile>
-    <!-- 入口 -->
-    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="main.cpp" />
     <!-- Utils 层 -->
     <ClInclude Include="src\Utils\MathUtils.h" />
     <ClInclude Include="src\Utils\ColorUtils.h" />

@@ -44,26 +44,28 @@ Actions 页面 → `build` → **Run workflow**，产物在 Artifacts 里下载�
 > Release|x64 构建通过，产物 **FluentZero.exe = 162.5 KB**（单文件，零附带 DLL）。
 > 静态链接 CRT（`/MT`），Win10 1607+ / Win11 直接双击运行。
 
-## 代码结构（分层架构，`src/`）
+## 代码结构（分层架构）
 
-6 层，自底向上单向依赖（上层可引用下层，反之不行）：
+入口 `main.cpp` + 预编译头 `pch.{h,cpp}` 在项目根目录，6 个功能层放在 `src/`，
+自底向上单向依赖（上层可引用下层，反之不行）：
 
 ```
-src/
-├── Utils/        第 1 层 · 纯工具（无业务依赖）
-│   ├── MathUtils.h       FzMx/Fzmn/Clamp01/EaseOut（header-only）
-│   └── ColorUtils.{h,cpp} D2D1_COLOR_F：Premul/Brighten/FzCol/HexOf/FzRR
-├── Platform/     第 2 层 · OS 抽象（只依赖 Win32）
-│   └── SystemSettings.{h,cpp} ReadAccent/SystemPrefersLight/GetEffectiveDpi
-├── Theme/        第 3 层 · Fluent 主题（依赖 Utils + Platform）
-│   └── FluentTheme.{h,cpp}  浅/深调色板 + 系统强调色
-├── Rendering/    第 4 层 · 渲染后端（D2D1 + DirectWrite）
-│   └── Renderer.{h,cpp}     HwndRenderTarget 基类 + 文本绘制工具
-├── UI/           第 5 层 · UI 控件（依赖 Rendering + Theme + Utils）
-│   └── Button.{h,cpp}       Reveal 按钮：状态 + 动画 + 绘制 + 命中
-├── Core/         第 6 层 · 应用编排（依赖所有层）
-│   └── App.{h,cpp}          窗口 / 布局 / 输入 / 消息循环 / 动画调度
-└── main.cpp               入口 wWinMain
+├── main.cpp              入口 wWinMain（根目录）
+├── pch.{h,cpp}           预编译头（根目录）
+└── src/
+    ├── Utils/            第 1 层 · 纯工具（无业务依赖）
+    │   ├── MathUtils.h       FzMx/Fzmn/Clamp01/EaseOut（header-only）
+    │   └── ColorUtils.{h,cpp} D2D1_COLOR_F：Premul/Brighten/FzCol/HexOf/FzRR
+    ├── Platform/         第 2 层 · OS 抽象（只依赖 Win32）
+    │   └── SystemSettings.{h,cpp} ReadAccent/SystemPrefersLight/GetEffectiveDpi
+    ├── Theme/            第 3 层 · Fluent 主题（依赖 Utils + Platform）
+    │   └── FluentTheme.{h,cpp}  浅/深调色板 + 系统强调色
+    ├── Rendering/        第 4 层 · 渲染后端（D2D1 + DirectWrite）
+    │   └── Renderer.{h,cpp}     HwndRenderTarget 基类 + 文本绘制工具
+    ├── UI/               第 5 层 · UI 控件（依赖 Rendering + Theme + Utils）
+    │   └── Button.{h,cpp}       Reveal 按钮：状态 + 动画 + 绘制 + 命中
+    └── Core/             第 6 层 · 应用编排（依赖所有层）
+        └── App.{h,cpp}          窗口 / 布局 / 输入 / 消息循环 / 动画调度
 ```
 
 依赖方向（单向、无环）：
