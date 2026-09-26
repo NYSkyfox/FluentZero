@@ -280,7 +280,7 @@ public:
         wc.hInstance = GetModuleHandleW(nullptr);
         wc.lpszClassName = L"FluentZeroWnd";
         wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-        wc.hbrBackground = nullptr;   // DComp 接管，GDI 不画
+        wc.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);  // 合法空刷，防 DefWindowProc 访问空句柄崩溃
         if (!RegisterClassExW(&wc)) { FzLog(L"RegisterClassExW failed"); return E_FAIL; }
 
         th = FluentTheme::Create();

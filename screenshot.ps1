@@ -46,13 +46,13 @@ $hwnd = [FzW]::FindWindow("FluentZeroWnd", $null)
 
 if ($hwnd -eq [IntPtr]::Zero) {
     Write-Host "!!! 主窗口未出现 —— app.Create() 可能失败，打印诊断:"
-    $dbg = Join-Path $PWD "fz_debug.txt"
-    if (Test-Path $dbg) {
-        Write-Host "===== fz_debug.txt ====="
-        Get-Content $dbg -Encoding Unicode | ForEach-Object { Write-Host "  $_" }
-        Write-Host "========================"
-    } else {
-        Write-Host "  (fz_debug.txt 不存在)"
+    foreach ($f in @("fz_crash.txt", "fz_debug.txt")) {
+        $p = Join-Path $PWD $f
+        if (Test-Path $p) {
+            Write-Host "===== $f ====="
+            Get-Content $p -Encoding Unicode | ForEach-Object { Write-Host "  $_" }
+            Write-Host ("=" * (6 + $f.Length))
+        }
     }
     Write-Host "可见窗口列表:"
     [FzW]::Dump()
