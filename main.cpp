@@ -199,8 +199,7 @@ struct Renderer {
         bb.fEnable = TRUE;
         if (SUCCEEDED(DwmEnableBlurBehindWindow(hwnd, &bb))) ok = true;
         // 3) D2D1 工厂（1.0 只有 SINGLE / MULTI_THREADED 两种）
-        if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED,
-                __uuidof(ID2D1Factory), (IUnknown**)d2dFactory.GetAddressOf())))
+        if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_MULTI_THREADED, d2dFactory.GetAddressOf())))
             return E_FAIL;
         // 4) 手搓渲染目标属性（不依赖 d2d1helper.h 的 C++ 辅助函数）
         D2D1_RENDER_TARGET_PROPERTIES rtp{};
