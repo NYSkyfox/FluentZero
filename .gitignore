@@ -1,0 +1,6 @@
+# 构建产物（由 GitHub Actions 生成，不要入库）
+FluentZero.exe
+bin/
+obj/
+*.user
+*.aps

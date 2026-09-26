@@ -37,9 +37,12 @@
 - 或直接在 VS 里打开 `FluentZero.sln`，Release | x64 生成
 
 产物：`bin/x64/Release/FluentZero.exe`（无任何附带文件）
-
 仓库已配置 **GitHub Actions**（手动触发）：
 Actions 页面 → `build` → **Run workflow**，产物在 Artifacts 里下载。
+
+> **构建验证（2026-09-26，windows-2025 VS2026 Runner，SDK 10.0.26100）**：
+> Release|x64 构建通过，产物 **FluentZero.exe = 162.5 KB**（单文件，零附带 DLL）。
+> 静态链接 CRT（`/MT`），Win10 1607+ / Win11 直接双击运行。
 
 ## 代码结构（`main.cpp`，约 650 行）
 
