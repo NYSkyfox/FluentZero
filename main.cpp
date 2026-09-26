@@ -217,15 +217,17 @@ struct Renderer {
         if (FAILED(dxgiDev->GetParent(IID_PPV_ARGS(&factory))) || !factory) return E_FAIL;
 
         // 5) flip swap chain（composition 模式创建，随后 SetHwnd 绑到窗口）
+        //    签名：(dxgiDevice, desc, output, swapChain)
         DXGI_SWAP_CHAIN_DESC1 sd{};
-        sd.Width = FzMx(1, w); sd.Height = FzMx(1, h);
+        sd.Width = w > 1 ? (UINT)w : 1;
+        sd.Height = h > 1 ? (UINT)h : 1;
         sd.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
         sd.SampleDesc.Count = 1;
         sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         sd.BufferCount = 2;
         sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
         sd.AlphaMode = DXGI_ALPHA_MODE_PREMULTIPLIED;
-        if (FAILED(factory->CreateSwapChainForComposition(&sd, nullptr, 0, &swap)))
+        if (FAILED(factory->CreateSwapChainForComposition(dxgiDev.Get(), &sd, nullptr, &swap)))
             return E_FAIL;
         RECT rc; GetClientRect(hwnd, &rc);
         if (FAILED(swap->SetHwnd(hwnd, &rc))) return E_FAIL;
