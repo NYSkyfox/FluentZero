@@ -40,7 +40,6 @@
       <MultiByteCharacters>false</MultiByteCharacters>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <SubSystem>Windows</SubSystem>
-      <EnableEnhancedInstructionSet>Avx2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
