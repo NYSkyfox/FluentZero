@@ -13,6 +13,24 @@ jobs:
       - name: Set up MSBuild
         uses: microsoft/setup-msbuild@v2
 
+      - name: Diagnostic (dump SDK header facts)
+        shell: pwsh
+        run: |
+          $sdkRoot = "C:\Program Files (x86)\Windows Kits\10\Include"
+          Write-Host "=== SDK versions ==="
+          Get-ChildItem $sdkRoot -Directory | Select-Object -ExpandProperty Name
+          $sdk = (Get-ChildItem $sdkRoot -Directory | Select-Object -First 1 -ExpandProperty Name)
+          $inc = Join-Path $sdkRoot $sdk "um"
+          Write-Host "=== d2d1_1.h interfaces ==="
+          Select-String -Path (Join-Path $inc "d2d1_1.h") -Pattern "^interface|D2D1CreateDevice|D2D1CreateDeviceContext" | Select-Object -First 20 | ForEach-Object { $_.LineNumber.ToString() + ": " + $_.Line }
+          Write-Host "=== d2d1.h ID2D1DeviceContext ==="
+          Select-String -Path (Join-Path $inc "d2d1.h") -Pattern "interface ID2D1DeviceContext|_WIN32_WINNT" | Select-Object -First 10 | ForEach-Object { $_.LineNumber.ToString() + ": " + $_.Line }
+          Write-Host "=== dxgi1_2/1_3 SetHwnd ==="
+          Select-String -Path (Join-Path $inc "dxgi1_2.h") -Pattern "SetHwnd|interface IDXGISwapChain1" | Select-Object -First 5 | ForEach-Object { $_.LineNumber.ToString() + ": " + $_.Line }
+          Select-String -Path (Join-Path $inc "dxgi1_3.h") -Pattern "SetHwnd|FLIP" | Select-Object -First 5 | ForEach-Object { $_.LineNumber.ToString() + ": " + $_.Line }
+          Write-Host "=== dwrite SEMIBOLD ==="
+          Get-ChildItem $inc -Filter "dwrite*.h" | ForEach-Object { Select-String -Path $_.FullName -Pattern "SEMIBOLD|SEMI_BOLD" | Select-Object -First 4 | ForEach-Object { $_.Filename + ":" + $_.LineNumber + ": " + $_.Line } }
+
       - name: Build (Release|x64)
         working-directory: .
         run: msbuild FluentZero.sln /p:Configuration=Release /p:Platform=x64 /v:m /nologo
