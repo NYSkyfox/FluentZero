@@ -14,38 +14,7 @@ jobs:
         run: msbuild FluentZero.sln /p:Configuration=Release /p:Platform=x64 /v:m /nologo
       - name: Run + screenshot (verify components render)
         shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $exe = "$PWD\bin\x64\Release\FluentZero.exe"
-          # 后台启动（GUI 程序，不阻塞）
-          $proc = Start-Process -FilePath $exe -PassThru
-          Start-Sleep -Seconds 4   # 等窗口创建 + 首帧渲染
-          # P/Invoke：找窗口 -> 置前 -> 截屏窗口区域
-          Add-Type -Namespace Fz -Name G -MemberDefinition @"
-          [DllImport("user32.dll")] public static extern IntPtr FindWindow(string c, string n);
-          [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
-          [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c);
-          [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out R r);
-          [StructLayout(LayoutKind.Sequential)] public struct R { public int l, t, rr, b; }
-          "@
-          $hwnd = [Fz.G]::FindWindow($null, "FluentZeroWnd")
-          if ($hwnd -eq [IntPtr]::Zero) { throw "window not found" }
-          [Fz.G]::ShowWindow($hwnd, 9) | Out-Null   # SW_RESTORE
-          [Fz.G]::SetForegroundWindow($hwnd) | Out-Null
-          Start-Sleep -Seconds 2   # 等置前 + 激活重绘
-          $rect = New-Object Fz.G+R
-          [Fz.G]::GetWindowRect($hwnd, [ref]$rect) | Out-Null
-          $w = $rect.rr - $rect.l; $h = $rect.b - $rect.t
-          Write-Host "Window: ($($rect.l), $($rect.t)) ${w}x${h}"
-          $bmp = New-Object System.Drawing.Bitmap($w, $h)
-          $g = [System.Drawing.Graphics]::FromImage($bmp)
-          $g.CopyFromScreen($rect.l, $rect.t, 0, 0, (New-Object System.Drawing.Size($w, $h)))
-          $g.Dispose()
-          $bmp.Save("$PWD\fluentzero_screenshot.png", [System.Drawing.Imaging.ImageFormat]::Png)
-          $bmp.Dispose()
-          # 截图前模拟一次鼠标划过按钮，让 Reveal 状态也拍进去（可选，不强制）
-          (Get-Item "fluentzero_screenshot.png").Length | ForEach-Object { Write-Host "Screenshot: $([math]::Round($_/1KB,1)) KB" }
-          Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File screenshot.ps1
       - name: List output
         run: |
           Write-Host "=== bin output ==="
