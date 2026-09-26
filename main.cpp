@@ -14,10 +14,10 @@
 //  单文件、零第三方依赖、零附带 DLL。全部使用系统自带组件：
 //    win32 / d2d1.dll / dwrite.dll / dcomp.dll / d3d11.dll / dwmapi.dll
 //
-//  渲染架构（AcrylicMenus 同款，Win10 1607+ / Win11 通用）：
+//  渲染架构（Win10 1607+ / Win11 通用）：
 //    HWND（WS_EX_NOREDIRECTIONBITMAP，保留原生标题栏）
 //        ├── DwmEnableBlurBehindWindow -> DWM 模糊窗口后方的桌面内容
-//        └── DXGI flip swap chain（SetHwnd 直接绑定，预乘 alpha）
+//        └── DXGI flip swap chain（SetHwnd 绑定，预乘 alpha）
 //              └── ID2D1DeviceContext1（背面缓冲上绘制）
 //                   半透明像素 -> DWM 合成时把模糊透出 = Acrylic
 //
@@ -177,6 +177,7 @@ struct Button {
 };
 
 // ------------------------------ 渲染后端 -----------------------------------
+// WS_EX_NOREDIRECTIONBITMAP + flip swap chain（AcrylicMenus 同款，Win10 1607+ / Win11）
 struct Renderer {
     ComPtr<ID3D11Device> d3d;
     ComPtr<ID3D11DeviceContext> d3dCtx;
@@ -189,7 +190,7 @@ struct Renderer {
     bool drawing = false;
 
     HRESULT Init(HWND hwnd, int w, int h) {
-        // 1) 窗口不重定向位图：swap chain 内容直接交给 DWM 合成
+        // 1) 窗口不重定向位图：swap chain 内容直接交给 DWM 合成（保留原生标题栏）
         LONG_PTR ex = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
         if (!(ex & WS_EX_NOREDIRECTIONBITMAP)) {
             SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex | WS_EX_NOREDIRECTIONBITMAP);
@@ -197,7 +198,7 @@ struct Renderer {
                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
         }
 
-        // 2) Acrylic：DWM 模糊（Win10 1607+）
+        // 2) Acrylic：DWM 模糊窗口后方内容（Win10 1607+ 经典实现）
         DWM_BLURBEHIND bb{};
         bb.dwFlags = DWM_BB_ENABLE;
         bb.fEnable = TRUE;
@@ -215,7 +216,7 @@ struct Renderer {
         ComPtr<IDXGIFactory2> factory;
         if (FAILED(dxgiDev->GetParent(IID_PPV_ARGS(&factory))) || !factory) return E_FAIL;
 
-        // 5) flip swap chain（composition 创建，随后 SetHwnd 绑窗口）
+        // 5) flip swap chain（composition 模式创建，随后 SetHwnd 绑到窗口）
         DXGI_SWAP_CHAIN_DESC1 sd{};
         sd.Width = FzMx(1, w); sd.Height = FzMx(1, h);
         sd.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
@@ -229,7 +230,7 @@ struct Renderer {
         RECT rc; GetClientRect(hwnd, &rc);
         if (FAILED(swap->SetHwnd(hwnd, &rc))) return E_FAIL;
 
-        // 6) D2D1 device + DeviceContext1（需要 1.1 接口才能用 DXGI 资源做位图）
+        // 6) D2D1 device + DeviceContext1（1.1 接口才能用 DXGI 资源建位图）
         if (FAILED(D2D1CreateDevice(d3d.Get(), nullptr, &d2dDevice))) return E_FAIL;
         if (FAILED(D2D1CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, &dc)))
             return E_FAIL;
@@ -264,3 +265,404 @@ struct Renderer {
         if (drawing) dc->SetTarget(backBuf.Get());
     }
 
+    HRESULT EndDraw() {
+        if (!drawing) return E_FAIL;
+        drawing = false;
+        if (FAILED(dc->EndDraw())) return E_FAIL;   // GPU 重置等，demo 不做重建
+        return swap->Present(0, 0);
+    }
+};
+
+// ------------------------------ 应用本体 -----------------------------------
+class App {
+public:
+    HWND hwnd = nullptr;
+    HBRUSH brush = nullptr;
+    Renderer r;
+    FluentTheme th;
+    std::vector<Button> buttons;
+    float lastT = 0;
+    bool needsDraw = true;
+    bool quit = false;
+    int primaryClicks = 0;
+    std::wstring detailAccent, detailTheme, detailClicks;
+    float px = 0, py = 0;
+    float titleY = 0, subY = 0, cardX = 0, cardY = 0, cardW = 0, cardH = 0;
+    float dpiScale = 1.0f;
+
+    // GetDpiForMonitor 运行时解析（保持链接器不要求新 SDK 导出）
+    static BOOL (WINAPI *pGetDpi)(HMONITOR, DWORD, UINT*, UINT*);
+
+    HRESULT Create() {
+        WNDCLASSEXW wc{};
+        wc.cbSize = sizeof(wc);
+        wc.lpfnWndProc = &App::WndProcStatic;
+        wc.hInstance = GetModuleHandleW(nullptr);
+        wc.lpszClassName = L"FluentZeroWnd";
+        wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+        wc.hbrBackground = nullptr;   // DComp 接管，GDI 不画
+        if (!RegisterClassExW(&wc)) return E_FAIL;
+
+        th = FluentTheme::Create();
+
+        hwnd = CreateWindowExW(0, wc.lpszClassName, L"FluentZero",
+            WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME,
+            CW_USEDEFAULT, CW_USEDEFAULT, 720, 520,
+            nullptr, nullptr, wc.hInstance, this);
+        if (!hwnd) return E_FAIL;
+        ShowWindow(hwnd, SW_SHOW);
+        UpdateWindow(hwnd);
+
+        // DPI
+        HMONITOR mon = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+        UINT dpi = 96;
+        if (pGetDpi) pGetDpi(mon, 0 /*MDT_EFFECTIVE_DPI*/, nullptr, &dpi);
+        dpiScale = dpi / 96.0f;
+
+        RECT rc; GetClientRect(hwnd, &rc);
+        r.Init(hwnd, rc.right - rc.left, rc.bottom - rc.top);
+
+        // 按钮（Segoe MDL2 Assets 码位）
+        buttons.push_back({ L"Home",     0xE80F, false, 0, 0, 0, 0, 0, 0, 0, false, false });
+        buttons.push_back({ L"Settings", 0xE713, false, 0, 0, 0, 0, 0, 0, 0, false, false });
+        buttons.push_back({ L"Refresh",  0xE895, false, 0, 0, 0, 0, 0, 0, 0, false, false });
+        buttons.push_back({ L"Add item", 0xE710, true,  0, 0, 0, 0, 0, 0, 0, false, false });
+
+        Layout();
+        RebuildDetail();
+        lastT = (float)GetTickCount64();
+        return S_OK;
+    }
+
+    // ------------------------------ 布局 ------------------------------
+    float Measure(const std::wstring& t, const wchar_t* face, float size, DWRITE_FONT_WEIGHT weight) {
+        if (!r.dw) return (float)t.size() * size * 0.6f;
+        ComPtr<IDWriteTextFormat> f;
+        r.dw->CreateTextFormat(face, nullptr, weight, DWRITE_FONT_STYLE_NORMAL,
+            DWRITE_FONT_STRETCH_NORMAL, size, L"en-us", &f);
+        if (!f) return (float)t.size() * size * 0.6f;
+        ComPtr<IDWriteTextLayout> lay;
+        if (FAILED(r.dw->CreateTextLayout(t.c_str(), (UINT32)t.size(), f.Get(), 1e6f, 1e6f, &lay)))
+            return (float)t.size() * size * 0.6f;
+        DWRITE_TEXT_METRICS tm{};
+        lay->GetMetrics(&tm);
+        return tm.layoutWidth;
+    }
+
+    void Layout() {
+        RECT rc; GetClientRect(hwnd, &rc);
+        float W = rc.right - rc.left, H = rc.bottom - rc.top;
+        float m = 28 * dpiScale;
+        float y = m;
+
+        titleY = y;          y += 40 * dpiScale;
+        subY   = y;          y += 30 * dpiScale;
+
+        // 标准按钮行
+        float s = dpiScale, gap = 10 * s, bx = m, by = y;
+        for (int i = 0; i < 3; i++) {
+            Button& b = buttons[i];
+            b.x = bx; b.y = by; b.h = 34 * s;
+            float tw = Measure(b.text, L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL);
+            float iconW = b.glyph ? 18 * s + 6 * s : 0;
+            b.w = tw + iconW + 28 * s;
+            bx += b.w + gap;
+        }
+        y += 34 * s + 12 * s;
+
+        // Primary 按钮（强调色）
+        Button& pb = buttons[3];
+        pb.x = m; pb.y = y; pb.h = 34 * s;
+        float ptw = Measure(pb.text, L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_SEMIBOLD);
+        pb.w = ptw + 18 * s + 6 * s + 32 * s;
+        y += 34 * s + 24 * s;
+
+        cardX = m; cardY = y;
+        cardW = W - 2 * m;
+        cardH = FzMx(110 * s, H - y - m);
+        needsDraw = true;
+    }
+
+    void RebuildDetail() {
+        detailAccent = L"Accent color (system)   " + HexOf(th.accent);
+        detailTheme  = th.light ? L"System theme            Light" : L"System theme            Dark";
+        detailClicks = L"Primary clicked         " + std::to_wstring(primaryClicks) + L" time(s)";
+        needsDraw = true;
+    }
+
+    // ------------------------------ 文本辅助 ------------------------------
+    ComPtr<ID2D1SolidColorBrush> MakeBrush(D2D1_COLOR_F c) {
+        ComPtr<ID2D1SolidColorBrush> b;
+        r.dc->CreateSolidColorBrush(Premul(c), &b);
+        return b;
+    }
+
+    void DrawText(const std::wstring& t, float x, float y, float maxW,
+                  const wchar_t* face, float size, DWRITE_FONT_WEIGHT weight, D2D1_COLOR_F c) {
+        if (!r.dw) return;
+        ComPtr<IDWriteTextFormat> f;
+        if (FAILED(r.dw->CreateTextFormat(face, nullptr, weight, DWRITE_FONT_STYLE_NORMAL,
+                DWRITE_FONT_STRETCH_NORMAL, size, L"en-us", &f)))
+            return;
+        ComPtr<IDWriteTextLayout> lay;
+        if (FAILED(r.dw->CreateTextLayout(t.c_str(), (UINT32)t.size(), f.Get(), maxW, 1e6f, &lay)))
+            return;
+        D2D1_POINT_2F p{};
+        p.x = x; p.y = y;
+        r.dc->DrawTextLayout(p, lay.Get(), MakeBrush(c).Get());
+    }
+
+    // ------------------------------ 绘制 ------------------------------
+    void DrawButton(const Button& b) {
+        float s = dpiScale;
+        float h = EaseOut(b.hoverT), p = EaseOut(b.pressT), rv = EaseOut(b.revealT);
+
+        D2D1_COLOR_F fill = b.primary ? th.accent : th.btnFill;
+        fill.a = 1;
+        fill = Brighten(fill, 0.04f * h);   // hover 提亮 4%
+        fill = Brighten(fill, -0.08f * p);  // pressed 压暗 8%
+        D2D1_COLOR_F txt = b.primary ? th.textOnAccent : th.btnText;
+
+        float r3 = 3 * s;
+        // 填充
+        r.dc->FillRoundedRectangle(
+            FzRR(b.x, b.y, b.x + b.w, b.y + b.h, r3),
+            MakeBrush(fill).Get());
+        // 边框（Win10 普通按钮有 1px 描边）
+        if (!b.primary) {
+            r.dc->DrawRoundedRectangle(
+                FzRR(b.x + 0.5f, b.y + 0.5f, b.x + b.w - 0.5f, b.y + b.h - 0.5f, r3),
+                MakeBrush(th.btnBorder).Get(), 1);
+        }
+
+        // Reveal 描边：整圈描边，alpha 随 revealT 渐入（Win10 Reveal 观感近似）
+        if (rv > 0.003f) {
+            D2D1_COLOR_F rc_ = th.reveal;
+            rc_.a = rc_.a * rv;
+            r.dc->DrawRoundedRectangle(
+                FzRR(b.x + 0.5f, b.y + 0.5f, b.x + b.w - 0.5f, b.y + b.h - 0.5f, r3),
+                MakeBrush(rc_).Get(), 1.5f * s);
+        }
+
+        // 图标 + 文字（整体水平居中）
+        float iconW = b.glyph ? 18 * s : 0, gapW = b.glyph ? 6 * s : 0;
+        float tw = Measure(b.text, L"Segoe UI", 13 * s,
+            b.primary ? DWRITE_FONT_WEIGHT_SEMIBOLD : DWRITE_FONT_WEIGHT_NORMAL);
+        float cx = b.x + (b.w - (iconW + gapW + tw)) * 0.5f;
+        float cy = b.y + b.h * 0.5f;
+        if (b.glyph) {
+            wchar_t g[2] = { (wchar_t)b.glyph, 0 };
+            DrawText(g, cx, cy - 9 * s, 40 * s, L"Segoe MDL2 Assets", 15 * s,
+                     DWRITE_FONT_WEIGHT_NORMAL, txt);
+            cx += iconW + gapW;
+        }
+        DrawText(b.text, cx, cy - 8 * s, b.w, L"Segoe UI", 13 * s,
+            b.primary ? DWRITE_FONT_WEIGHT_SEMIBOLD : DWRITE_FONT_WEIGHT_NORMAL, txt);
+    }
+
+    void Draw() {
+        RECT rc; GetClientRect(hwnd, &rc);
+        float W = rc.right - rc.left, H = rc.bottom - rc.top;
+        float s = dpiScale;
+
+        r.BeginDraw();
+
+        // 1) 背景：Acrylic 半透明主题色（DWM 模糊从透明处透出桌面）
+        // 注意：D2D 的 Clear 要求预乘 alpha
+        r.dc->Clear(Premul(th.bg));
+
+        // 2) 标题 / 副标题
+        DrawText(L"FluentZero", 28 * s, titleY, W, L"Segoe UI Semibold", 26 * s,
+                 DWRITE_FONT_WEIGHT_SEMIBOLD, th.text1);
+        DrawText(L"Windows 10 Fluent Design · 纯 Win32 + Direct2D 手搓 · 零依赖单 exe",
+                 28 * s, subY, W, L"Segoe UI", 12 * s, DWRITE_FONT_WEIGHT_NORMAL, th.text2);
+
+        // 3) 按钮
+        for (auto& b : buttons) DrawButton(b);
+
+        // 4) 信息卡
+        r.dc->FillRoundedRectangle(
+            FzRR(cardX, cardY, cardX + cardW, cardY + cardH, 6 * s),
+            MakeBrush(th.card).Get());
+        r.dc->DrawRoundedRectangle(
+            FzRR(cardX + 0.5f, cardY + 0.5f, cardX + cardW - 0.5f, cardY + cardH - 0.5f, 6 * s),
+            MakeBrush(th.cardBorder).Get(), 1);
+        // 强调色色块
+        r.dc->FillRoundedRectangle(
+            FzRR(cardX + 16 * s, cardY + 16 * s, cardX + 16 * s + 36 * s, cardY + 16 * s + 36 * s, 3 * s),
+            MakeBrush(FzCol(th.accent.r, th.accent.g, th.accent.b, 1)).Get());
+        float tx = cardX + 16 * s + 36 * s + 16 * s;
+        DrawText(detailAccent, tx, cardY + 18 * s, W, L"Consolas", 13 * s,
+                 DWRITE_FONT_WEIGHT_NORMAL, th.text1);
+        DrawText(detailTheme,  tx, cardY + 44 * s, W, L"Segoe UI", 13 * s,
+                 DWRITE_FONT_WEIGHT_NORMAL, th.text1);
+        DrawText(detailClicks, tx, cardY + 70 * s, W, L"Segoe UI", 13 * s,
+                 DWRITE_FONT_WEIGHT_NORMAL, th.text1);
+        DrawText(L"Reveal hover 150ms ease-out · Segoe MDL2 Assets · Acrylic (BlurBehind)",
+                 tx, cardY + 94 * s, W, L"Segoe UI", 11 * s,
+                 DWRITE_FONT_WEIGHT_NORMAL, th.text2);
+
+        r.EndDraw();
+    }
+
+    // ------------------------------ 输入 ------------------------------
+    int HitButton(float x, float y) const {
+        for (int i = 0; i < (int)buttons.size(); i++) {
+            const Button& b = buttons[i];
+            if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return i;
+        }
+        return -1;
+    }
+
+    void OnMove(float x, float y) {
+        px = x; py = y;
+        int hit = HitButton(x, y);
+        for (int i = 0; i < (int)buttons.size(); i++)
+            buttons[i].hot = (i == hit);
+        needsDraw = true;
+    }
+
+    void OnLButtonDown(float x, float y) {
+        int hit = HitButton(x, y);
+        if (hit >= 0) {
+            buttons[hit].pressed = true;
+            SetCapture(hwnd);
+            needsDraw = true;
+        }
+    }
+
+    void OnLButtonUp(float x, float y) {
+        if (GetCapture() == hwnd) ReleaseCapture();
+        int hit = HitButton(x, y);
+        for (int i = 0; i < (int)buttons.size(); i++) {
+            Button& b = buttons[i];
+            if (b.pressed) {
+                b.pressed = false;
+                if (i == hit && b.primary) {
+                    primaryClicks++;
+                    RebuildDetail();
+                }
+            }
+        }
+        needsDraw = true;
+    }
+
+    // ------------------------------ 动画 ------------------------------
+    bool animating = false;
+
+    void Update(float dt) {
+        animating = false;
+        for (auto& b : buttons) {
+            b.hoverT  = Clamp01(b.hoverT + (b.hot ? dt / 0.15f : -dt / 0.15f));
+            b.pressT  = Clamp01(b.pressT + (b.pressed ? dt / 0.08f : -dt / 0.12f));
+            b.revealT = Clamp01(b.revealT + (b.hot ? dt / 0.15f : -dt / 0.15f));
+            if ((b.hoverT > 0 && b.hoverT < 1) || (b.pressT > 0 && b.pressT < 1) ||
+                (b.revealT > 0 && b.revealT < 1))
+                animating = true;
+        }
+    }
+
+    // ------------------------------ 消息循环 ------------------------------
+    void Run() {
+        MSG msg;
+        while (!quit) {
+            while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) {
+                if (msg.message == WM_QUIT) { quit = true; break; }
+                TranslateMessage(&msg);
+                DispatchMessageW(&msg);
+            }
+            if (quit) break;
+            float t = (float)GetTickCount64();
+            float dt = Fzmn(0.1f, FzMx(0.0f, t - lastT) / 1000.0f);
+            lastT = t;
+            Update(dt);
+            if (needsDraw && r.ok) {
+                Draw();
+                needsDraw = false;
+            }
+            // 动画进行中：短睡保证 ~60fps；空闲时阻塞等待消息（零 CPU）
+            if (animating || needsDraw) Sleep(16);
+            else WaitMessage();
+        }
+    }
+
+    // ------------------------------ Win32 消息 ------------------------------
+    static LRESULT CALLBACK WndProcStatic(HWND h, UINT m, WPARAM w, LPARAM l) {
+        App* self = nullptr;
+        if (m == WM_NCCREATE) {
+            auto* cs = (CREATESTRUCTW*)l;
+            self = (App*)cs->lpCreateParams;
+            SetWindowLongPtrW(h, GWLP_USERDATA, (LONG_PTR)self);
+        } else {
+            self = (App*)GetWindowLongPtrW(h, GWLP_USERDATA);
+        }
+        if (self) return self->WndProc(m, w, l);
+        return DefWindowProcW(h, m, w, l);
+    }
+
+    LRESULT WndProc(UINT m, WPARAM w, LPARAM l) {
+        switch (m) {
+        case WM_GETMINMAXINFO: {
+            auto* mm = (MINMAXINFO*)l;
+            mm->ptMinTrackSize.x = 560;
+            mm->ptMinTrackSize.y = 420;
+            return 0;
+        }
+        case WM_SIZE:
+            if (r.swap && LOWORD(l) > 0 && HIWORD(l) > 0)
+                r.Resize(hwnd, LOWORD(l), HIWORD(l));
+            Layout();
+            return 0;
+        case WM_MOUSEMOVE:
+            OnMove(GET_X_LPARAM(l), GET_Y_LPARAM(l));
+            {
+                // 注册离开检测，让 WM_MOUSELEAVE 真正能收到
+                static TRACKMOUSEEVENT tme{};
+                tme.cbSize = sizeof(tme);
+                tme.dwFlags = TME_LEAVE;
+                tme.hwndTrack = hwnd;
+                tme.dwHoverTime = HOVER_DEFAULT;
+                TrackMouseEvent(&tme);
+            }
+            return 0;
+        case WM_MOUSELEAVE:
+            for (auto& b : buttons) b.hot = false;
+            needsDraw = true;
+            return 0;
+        case WM_LBUTTONDOWN:
+            OnMove(GET_X_LPARAM(l), GET_Y_LPARAM(l));
+            OnLButtonDown(GET_X_LPARAM(l), GET_Y_LPARAM(l));
+            return 0;
+        case WM_LBUTTONUP:
+            OnMove(GET_X_LPARAM(l), GET_Y_LPARAM(l));
+            OnLButtonUp(GET_X_LPARAM(l), GET_Y_LPARAM(l));
+            return 0;
+        case WM_ERASEBKGND:
+            return 1;  // DComp 接管，抑制 GDI 擦背景
+        case WM_DESTROY:
+            PostQuitMessage(0);
+            return 0;
+        }
+        return DefWindowProcW(hwnd, m, w, l);
+    }
+};
+
+BOOL (WINAPI *App::pGetDpi)(HMONITOR, DWORD, UINT*, UINT*) = nullptr;
+
+} // namespace fz
+
+// ------------------------------ 入口 ----------------------------------------
+int WINAPI wWinMain(HINSTANCE, HINSTANCE, PWSTR, int) {
+    // 运行时解析 GetDpiForMonitor（Win8.1+ 均有，避免链接期依赖）
+    fz::App::pGetDpi = (decltype(fz::App::pGetDpi))
+        GetProcAddress(GetModuleHandleW(L"user32.dll"), "GetDpiForMonitor");
+
+    fz::App app;
+    if (FAILED(app.Create())) {
+        MessageBoxW(nullptr, L"FluentZero 初始化失败（需要 Win10 1809+）",
+                    L"FluentZero", MB_ICONERROR);
+        return 1;
+    }
+    app.Run();
+    return 0;
+}
