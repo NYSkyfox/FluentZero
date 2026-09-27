@@ -50,7 +50,9 @@ void DrawToggleSwitch(Renderer& r, const ToggleSwitch& ts, const FluentTheme& th
     D2D1_COLOR_F knobEdge = Lerp(offEdge, onEdge, tT);
     rt->DrawEllipse(&knob, r.MakeBrush(knobEdge).Get(), 1.0f);
 
-    r.DrawText(ts.label, ts.x + trackW + 8 * s, knobY - 8 * s, ts.w,
+    // 标签 + 实时状态（On/Off）
+    r.DrawText(ts.label + L" : " + (ts.on ? L"On" : L"Off"),
+               ts.x + trackW + 8 * s, knobY - 8 * s, ts.w,
                L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL, th.text1);
 }
 

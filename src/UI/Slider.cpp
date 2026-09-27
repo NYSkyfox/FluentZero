@@ -17,8 +17,10 @@ void DrawSlider(Renderer& r, const Slider& s, const FluentTheme& th, float sc) {
     float trackY = s.y + labelH + (s.h - labelH - trackH) * 0.5f;
     float v = Clamp01(s.value);
 
-    // 标签
-    r.DrawText(s.label, s.x, s.y, s.w, L"Segoe UI", 11 * sc,
+    // 标签 + 实时百分比
+    int pct = (int)(Clamp01(s.value) * 100.0f + 0.5f);
+    r.DrawText(s.label + L" : " + std::to_wstring(pct) + L"%",
+               s.x, s.y, s.w, L"Segoe UI", 11 * sc,
                DWRITE_FONT_WEIGHT_NORMAL, th.text2);
 
     // 轨道（灰）

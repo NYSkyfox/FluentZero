@@ -34,7 +34,9 @@ void DrawRadioButton(Renderer& r, const RadioButton& rb, const FluentTheme& th, 
         rt->FillEllipse(&dot, r.MakeBrush(FzCol(th.accent.r, th.accent.g, th.accent.b, 1)).Get());
     }
 
-    r.DrawText(rb.label, rb.x + d + 8 * s, cy - 8 * s, rb.w,
+    // 标签 + 实时状态（Selected/Not selected）
+    r.DrawText(rb.label + L" : " + (rb.selected ? L"Selected" : L"Not selected"),
+               rb.x + d + 8 * s, cy - 8 * s, rb.w,
                L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL, th.text1);
 }
 

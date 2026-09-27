@@ -16,11 +16,13 @@ static float StarLabelH(float s) { return 16 * s; }
 void DrawRatingControl(Renderer& r, const RatingControl& rc, const FluentTheme& th, float sc) {
     ID2D1HwndRenderTarget* rt = r.rt.Get();
     if (!rt) return;
-    // 标签
-    r.DrawText(rc.label, rc.x, rc.y, rc.w, L"Segoe UI", 11 * sc,
+    // 实时星级（hover 预览时显示悬停值，否则当前打分）
+    int shown = (rc.hover > 0) ? rc.hover : rc.value;
+    // 标签 + 星级
+    r.DrawText(rc.label + L" : " + std::to_wstring(shown) + L"/5",
+               rc.x, rc.y, rc.w, L"Segoe UI", 11 * sc,
                DWRITE_FONT_WEIGHT_NORMAL, th.text2);
     float sy = rc.y + StarLabelH(sc);
-    int shown = (rc.hover > 0) ? rc.hover : rc.value;
     for (int k = 1; k <= 5; k++) {
         float sx = rc.x + (k - 1) * StarGap(sc);
         bool on = k <= shown;

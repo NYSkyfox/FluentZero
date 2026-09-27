@@ -49,8 +49,10 @@ void DrawProgressRing(Renderer& r, const ProgressRing& pr, const FluentTheme& th
         rt->FillEllipse(&cap, r.MakeBrush(FzCol(th.accent.r, th.accent.g, th.accent.b, 1)).Get());
     }
 
-    // 标签（右侧）
-    r.DrawText(pr.label, pr.x + ringD + 8 * sc, cy - 8 * sc, pr.w,
+    // 标签 + 实时百分比（右侧）
+    int pct = (int)(Clamp01(pr.value) * 100.0f + 0.5f);
+    r.DrawText(pr.label + L" : " + std::to_wstring(pct) + L"%",
+               pr.x + ringD + 8 * sc, cy - 8 * sc, pr.w,
                L"Segoe UI", 13 * sc, DWRITE_FONT_WEIGHT_NORMAL, th.text1);
 }
 

@@ -40,7 +40,9 @@ void DrawCheckBox(Renderer& r, const CheckBox& cb, const FluentTheme& th, float 
         rt->DrawRoundedRectangle(&rr, r.MakeBrush(border).Get(), (hT > 0 ? 1.5f : 1.0f) * s);
     }
 
-    r.DrawText(cb.label, cb.x + box + 8 * s, by + box * 0.5f - 8 * s, cb.w,
+    // 标签 + 实时状态（Checked/Unchecked）
+    r.DrawText(cb.label + L" : " + (cb.checked ? L"Checked" : L"Unchecked"),
+               cb.x + box + 8 * s, by + box * 0.5f - 8 * s, cb.w,
                L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL, th.text1);
 }
 

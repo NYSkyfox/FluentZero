@@ -73,7 +73,9 @@ void DrawNavPane(Renderer& r, const NavGeometry& g, const std::vector<NavItem>& 
             r.DrawText(gl, iconX, cy - 9 * s, 40 * s, L"Segoe MDL2 Assets", 16 * s,
                        DWRITE_FONT_WEIGHT_NORMAL, txt);
         }
-        r.DrawText(it.text, textX, cy - 8 * s, w, L"Segoe UI", 13 * s, wt, txt);
+        // 导航文字 + 当前状态（Selected / Hover / Idle）
+        std::wstring nstate = it.selected ? L"Selected" : (it.hot ? L"Hover" : L"Idle");
+        r.DrawText(it.text + L" : " + nstate, textX, cy - 8 * s, w, L"Segoe UI", 13 * s, wt, txt);
     }
 }
 

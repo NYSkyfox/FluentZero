@@ -40,9 +40,9 @@ void DrawButton(Renderer& r, const Button& b, const FluentTheme& th, float s) {
             r.MakeBrush(rc_).Get(), 1.5f * s);
     }
 
-    // 文字：固定左对齐（不用 Measure 居中——CI 软渲染下 Measure 可能返回异常值
-    // 导致 cx 为巨大负数、文字画到屏幕外）。与 CheckBox 等控件用同一坐标模式
-    r.DrawText(b.text, b.x + 12 * s, b.y + b.h * 0.5f - 8 * s, b.w,
+    // 文字：固定左对齐 + 当前状态（不用 Measure 居中——CI 软渲染下 Measure 可能返回异常值）
+    std::wstring state = b.pressed ? L"Pressed" : (b.hot ? L"Hover" : L"Normal");
+    r.DrawText(b.text + L" : " + state, b.x + 12 * s, b.y + b.h * 0.5f - 8 * s, b.w,
                L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL, txt);
 }
 
