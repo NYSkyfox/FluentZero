@@ -15,9 +15,10 @@ void DrawToggleSwitch(Renderer& r, const ToggleSwitch& ts, const FluentTheme& th
 
     const float trackW = 40 * s, trackH = 20 * s;
     float tx = ts.x, ty = ts.y + (ts.h - trackH) * 0.5f;
+    const float inset = 2 * s;               // 圆钮到轨道左右内壁的间隙（原为 0，贴边，现增大一点点）
     float knobD = trackH - 6 * s, knobR = knobD * 0.5f;
-    // 圆钮中心：关=左，开=右，按 toggleT 滑动
-    float knobX = tx + knobR + tT * (trackW - knobD);
+    // 圆钮中心：关=左，开=右，按 toggleT 滑动（两端各留 inset 间隙，不再贴边）
+    float knobX = tx + inset + knobR + tT * (trackW - 2 * inset - knobD);
     float knobY = ty + trackH * 0.5f;
 
     // 轨道：关=白底黑边，开=accent 填充（按 tT 过渡）

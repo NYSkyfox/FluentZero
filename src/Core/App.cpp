@@ -40,10 +40,11 @@ HRESULT App::Create() {
     // 按钮必须先于 CreateWindowExW 填充：
     // CreateWindowExW / ShowWindow 会同步发 WM_SIZE → Layout() 访问 buttons[i]，
     // 若此时 buttons 为空则 operator[] 越界 → 野引用写 → 空指针写崩溃(0xC0000005)
-    buttons.push_back({ L"Home",     0xE80F, false });
-    buttons.push_back({ L"Settings", 0xE713, false });
-    buttons.push_back({ L"Refresh",  0xE895, false });
-    buttons.push_back({ L"Add item", 0xE710, true  });
+    // 按钮文字 = 按钮"类型名"（演示用），图标码位 0（纯文字，避免 CI 环境无 MDL2 图标字形）
+    buttons.push_back({ L"Button",  0, false });
+    buttons.push_back({ L"Button",  0, false });
+    buttons.push_back({ L"Button",  0, false });
+    buttons.push_back({ L"Primary", 0, true  });
 
     // 导航项（同样必须先于 CreateWindowExW 填充，防 WM_SIZE 早到越界）
     navItems.push_back({ L"Home",     0xE80F, 0, 0, 0, false, true  });
@@ -67,10 +68,10 @@ HRESULT App::Create() {
     toggles.push_back({ L"Do not disturb", false, 0, 0, 0, 0, 0, 0, false, false });
 
     // ProgressBar（演示自动推进）
-    progressBars.push_back({ L"Syncing…", 0.6f, 0, 0, 0, 0, true });
+    progressBars.push_back({ L"Syncing...", 0.6f, 0, 0, 0, 0, true });
 
     // ProgressRing（确定态，演示自动推进）
-    progressRings.push_back({ L"Loading…", 0.4f, 0, 0, 0, 0, true });
+    progressRings.push_back({ L"Loading...", 0.4f, 0, 0, 0, 0, true });
     progressRings.push_back({ L"Uploading", 0.8f, 0, 0, 0, 0, true });
 
     // Slider（可拖拽）
@@ -257,7 +258,7 @@ void App::onDraw() {
     // 4) 右侧内容区：标题 / 副标题
     DrawText(pageTitle, contentX, titleY, W - contentX, L"Segoe UI", 26 * s,
              (DWRITE_FONT_WEIGHT)600, th.text1);
-    DrawText(L"Windows 10 Fluent Design · 纯 Win32 + Direct2D 手搓 · 零依赖单 exe",
+    DrawText(L"Windows 10 Fluent Design  |  Pure Win32 + Direct2D  |  Zero-dependency single exe",
              contentX, subY, W - contentX, L"Segoe UI", 12 * s, DWRITE_FONT_WEIGHT_NORMAL, th.text2);
 
     // 5) 分组标题（两栏分节，对齐 Win10 设置页）
@@ -314,7 +315,7 @@ void App::DrawCard() {
              DWRITE_FONT_WEIGHT_NORMAL, th.text1);
     DrawText(detailClicks, tx, cardY + 70 * s, W, L"Segoe UI", 13 * s,
              DWRITE_FONT_WEIGHT_NORMAL, th.text1);
-    DrawText(L"Reveal hover 150ms ease-out · Segoe MDL2 Assets · Acrylic (BlurBehind)",
+    DrawText(L"Reveal hover 150ms ease-out | Segoe MDL2 Assets | Acrylic (BlurBehind)",
              tx, cardY + 94 * s, W, L"Segoe UI", 11 * s,
              DWRITE_FONT_WEIGHT_NORMAL, th.text2);
 }

@@ -40,18 +40,12 @@ void DrawButton(Renderer& r, const Button& b, const FluentTheme& th, float s) {
             r.MakeBrush(rc_).Get(), 1.5f * s);
     }
 
-    // 图标 + 文字（整体水平居中）
-    float iconW = b.glyph ? 18 * s : 0, gapW = b.glyph ? 6 * s : 0;
+    // 文字（水平居中）。去 Segoe MDL2 图标：CI 的 Windows Server 无该图标字体字形，
+    // 图标字形缺失会导致整行绘制异常；纯文字最稳，且按钮文字已改为"类型名"
     float tw = r.Measure(b.text, L"Segoe UI", 13 * s,
         b.primary ? (DWRITE_FONT_WEIGHT)600 : DWRITE_FONT_WEIGHT_NORMAL);
-    float cx = b.x + (b.w - (iconW + gapW + tw)) * 0.5f;
+    float cx = b.x + (b.w - tw) * 0.5f;
     float cy = b.y + b.h * 0.5f;
-    if (b.glyph) {
-        wchar_t g[2] = { (wchar_t)b.glyph, 0 };
-        r.DrawText(g, cx, cy - 9 * s, 40 * s, L"Segoe MDL2 Assets", 15 * s,
-                   DWRITE_FONT_WEIGHT_NORMAL, txt);
-        cx += iconW + gapW;
-    }
     r.DrawText(b.text, cx, cy - 8 * s, b.w, L"Segoe UI", 13 * s,
         b.primary ? (DWRITE_FONT_WEIGHT)600 : DWRITE_FONT_WEIGHT_NORMAL, txt);
 }
