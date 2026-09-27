@@ -6,6 +6,10 @@
 #include "Rendering/Renderer.h"
 #include "UI/Button.h"
 #include "UI/NavPane.h"
+#include "UI/CheckBox.h"
+#include "UI/RadioButton.h"
+#include "UI/ToggleSwitch.h"
+#include "UI/ProgressBar.h"
 #include "Platform/SystemSettings.h"
 
 #pragma comment(lib, "d2d1.lib")
@@ -48,9 +52,26 @@ HRESULT App::Create() {
     navItems.push_back({ L"Network",  0xE839, 0, 0, 0, false, false });
     pageTitle = L"Home";
 
+    // CheckBox（第 2 个默认勾选，演示勾选态）
+    checkboxes.push_back({ L"Animations",     false, 0, 0, 0, 0, 0, 0, 0, false, false });
+    checkboxes.push_back({ L"Sounds",         true,  0, 0, 0, 0, 0, 0, 0, false, false });
+    checkboxes.push_back({ L"Dark mode",      false, 0, 0, 0, 0, 0, 0, 0, false, false });
+
+    // RadioButton（组内互斥，默认选 0）
+    radios.push_back({ L"Automatic", true,  0, 0, 0, 0, 0, false, false });
+    radios.push_back({ L"Light",     false, 0, 0, 0, 0, 0, false, false });
+    radios.push_back({ L"Dark",      false, 0, 0, 0, 0, 0, false, false });
+
+    // ToggleSwitch（第 1 个默认开）
+    toggles.push_back({ L"Notifications",  true,  0, 0, 0, 0, 0, 0, false, false });
+    toggles.push_back({ L"Do not disturb", false, 0, 0, 0, 0, 0, 0, false, false });
+
+    // ProgressBar（演示自动推进）
+    progressBars.push_back({ L"Syncing…", 0.6f, 0, 0, 0, 0, true });
+
     hwnd = CreateWindowExW(0, wc.lpszClassName, L"FluentZero",
         WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME,
-        CW_USEDEFAULT, CW_USEDEFAULT, 780, 540,
+        CW_USEDEFAULT, CW_USEDEFAULT, 780, 640,
         nullptr, nullptr, wc.hInstance, this);
     if (!hwnd)
         return E_FAIL;
@@ -118,7 +139,61 @@ void App::Layout() {
     pb.x = contentX; pb.y = y; pb.h = 34 * s;
     float ptw = Measure(pb.text, L"Segoe UI", 13 * s, (DWRITE_FONT_WEIGHT)600);
     pb.w = Fzmn(cw, ptw + 18 * s + 6 * s + 32 * s);
-    y += 34 * s + 24 * s;
+    y += 34 * s + 20 * s;
+
+    // 控件行 1：CheckBox ×3
+    row1Y = y;
+    {
+        float cx = contentX, itemH = 28 * s;
+        for (int i = 0; i < (int)checkboxes.size(); i++) {
+            CheckBox& c = checkboxes[i];
+            c.y = row1Y; c.h = itemH;
+            float tw = Measure(c.label, L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL);
+            c.w = 18 * s + 8 * s + tw;
+            c.x = Fzmn(cx, contentX + cw);
+            cx += c.w + 22 * s;
+        }
+    }
+    y += 30 * s + 16 * s;
+
+    // 控件行 2：ToggleSwitch ×2（左）
+    row2Y = y;
+    {
+        float itemH = 28 * s;
+        float tx = contentX;
+        for (int i = 0; i < (int)toggles.size(); i++) {
+            ToggleSwitch& c = toggles[i];
+            c.y = row2Y; c.h = itemH;
+            float tw = Measure(c.label, L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL);
+            c.w = 40 * s + 8 * s + tw;
+            c.x = Fzmn(tx, contentX + cw);
+            tx += c.w + 24 * s;
+        }
+    }
+    y += 30 * s + 16 * s;
+
+    // 控件行 3：RadioButton ×3（左）
+    row3Y = y;
+    {
+        float itemH = 28 * s;
+        float rx = contentX;
+        for (int i = 0; i < (int)radios.size(); i++) {
+            RadioButton& c = radios[i];
+            c.y = row3Y; c.h = itemH;
+            float tw = Measure(c.label, L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL);
+            c.w = 18 * s + 8 * s + tw;
+            c.x = Fzmn(rx, contentX + cw);
+            rx += c.w + 20 * s;
+        }
+    }
+    y += 30 * s + 14 * s;
+
+    // 进度条
+    {
+        ProgressBar& p = progressBars[0];
+        p.y = y; p.h = 22 * s; p.x = contentX; p.w = Fzmn(cw, 260 * s);
+    }
+    y += 22 * s + 18 * s;
 
     cardX = contentX; cardY = y;
     cardW = cw;
@@ -169,7 +244,23 @@ void App::onDraw() {
     for (auto& b : buttons)
         DrawButton(*this, b, th, s);
 
-    // 5) 信息卡
+    // 5) CheckBox
+    for (auto& c : checkboxes)
+        DrawCheckBox(*this, c, th, s);
+
+    // 6) ToggleSwitch
+    for (auto& t : toggles)
+        DrawToggleSwitch(*this, t, th, s);
+
+    // 7) RadioButton
+    for (auto& rb : radios)
+        DrawRadioButton(*this, rb, th, s);
+
+    // 8) ProgressBar
+    for (auto& p : progressBars)
+        DrawProgressBar(*this, p, th, s);
+
+    // 9) 信息卡
     DrawCard();
 }
 
@@ -203,13 +294,21 @@ void App::DrawCard() {
 // ==================== 输入 ====================
 
 void App::OnMove(float x, float y) {
-    int hit = HitButton(buttons, x, y);
+    int bh = HitButton(buttons, x, y);
     for (int i = 0; i < (int)buttons.size(); i++)
-        buttons[i].hot = (i == hit);
-    // 导航 hover
-    int nHit = HitNavItem(navGeo, navItems, x, y);
+        buttons[i].hot = (i == bh);
+    int nh = HitNavItem(navGeo, navItems, x, y);
     for (int i = 0; i < (int)navItems.size(); i++)
-        navItems[i].hot = (i == nHit);
+        navItems[i].hot = (i == nh);
+    int ch = HitCheckBox(checkboxes, x, y);
+    for (int i = 0; i < (int)checkboxes.size(); i++)
+        checkboxes[i].hot = (i == ch);
+    int th_ = HitToggleSwitch(toggles, x, y);
+    for (int i = 0; i < (int)toggles.size(); i++)
+        toggles[i].hot = (i == th_);
+    int rh = HitRadioButton(radios, x, y);
+    for (int i = 0; i < (int)radios.size(); i++)
+        radios[i].hot = (i == rh);
     needsDraw = true;
 }
 
@@ -244,6 +343,20 @@ void App::OnLButtonUp(float x, float y) {
         pageTitle = navItems[nHit].text;   // 右侧大标题跟随选中项
         RebuildDetail();
     }
+    // CheckBox 点击切换
+    int ch = HitCheckBox(checkboxes, x, y);
+    if (ch >= 0) { checkboxes[ch].checked = !checkboxes[ch].checked; needsDraw = true; }
+    // ToggleSwitch 点击切换
+    int th_ = HitToggleSwitch(toggles, x, y);
+    if (th_ >= 0) { toggles[th_].on = !toggles[th_].on; needsDraw = true; }
+    // RadioButton 点击选中（组内互斥）
+    int rh = HitRadioButton(radios, x, y);
+    if (rh >= 0 && rh != radioSelected) {
+        for (int i = 0; i < (int)radios.size(); i++)
+            radios[i].selected = (i == rh);
+        radioSelected = rh;
+        needsDraw = true;
+    }
     needsDraw = true;
 }
 
@@ -257,6 +370,23 @@ void App::Update(float dt) {
     for (auto& it : navItems)
         if (UpdateNavItemAnimation(it, dt))
             animating = true;
+    for (auto& c : checkboxes)
+        if (UpdateCheckBox(c, dt))
+            animating = true;
+    for (auto& t : toggles)
+        if (UpdateToggleSwitch(t, dt))
+            animating = true;
+    for (auto& rb : radios)
+        if (UpdateRadioButton(rb, dt))
+            animating = true;
+    // ProgressBar 自动推进（演示）
+    for (auto& p : progressBars) {
+        if (p.active) {
+            p.value += dt * 0.35f;
+            if (p.value > 1.0f) p.value = 0.0f;
+            animating = true;
+        }
+    }
 }
 
 // ==================== 消息循环 ====================
@@ -338,6 +468,9 @@ LRESULT App::WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
     case WM_MOUSELEAVE:
         for (auto& b : buttons) b.hot = false;
         for (auto& it : navItems) it.hot = false;
+        for (auto& c : checkboxes) c.hot = false;
+        for (auto& t : toggles) t.hot = false;
+        for (auto& rb : radios) rb.hot = false;
         needsDraw = true;
         return 0;
     case WM_LBUTTONDOWN:

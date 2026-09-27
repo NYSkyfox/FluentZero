@@ -37,6 +37,14 @@
     <ClCompile Include="src\UI\Button.cpp"><Filter>src\UI</Filter></ClCompile>
     <ClInclude Include="src\UI\NavPane.h"><Filter>src\UI</Filter></ClInclude>
     <ClCompile Include="src\UI\NavPane.cpp"><Filter>src\UI</Filter></ClCompile>
+    <ClInclude Include="src\UI\CheckBox.h"><Filter>src\UI</Filter></ClInclude>
+    <ClCompile Include="src\UI\CheckBox.cpp"><Filter>src\UI</Filter></ClCompile>
+    <ClInclude Include="src\UI\RadioButton.h"><Filter>src\UI</Filter></ClInclude>
+    <ClCompile Include="src\UI\RadioButton.cpp"><Filter>src\UI</Filter></ClCompile>
+    <ClInclude Include="src\UI\ToggleSwitch.h"><Filter>src\UI</Filter></ClInclude>
+    <ClCompile Include="src\UI\ToggleSwitch.cpp"><Filter>src\UI</Filter></ClCompile>
+    <ClInclude Include="src\UI\ProgressBar.h"><Filter>src\UI</Filter></ClInclude>
+    <ClCompile Include="src\UI\ProgressBar.cpp"><Filter>src\UI</Filter></ClCompile>
     <ClInclude Include="src\Core\App.h"><Filter>src\Core</Filter></ClInclude>
     <ClCompile Include="src\Core\App.cpp"><Filter>src\Core</Filter></ClCompile>
   </ItemGroup>

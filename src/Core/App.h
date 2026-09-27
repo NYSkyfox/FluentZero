@@ -5,6 +5,10 @@
 #include "Rendering/Renderer.h"
 #include "UI/Button.h"
 #include "UI/NavPane.h"
+#include "UI/CheckBox.h"
+#include "UI/RadioButton.h"
+#include "UI/ToggleSwitch.h"
+#include "UI/ProgressBar.h"
 #include "Theme/FluentTheme.h"
 
 namespace fz {
@@ -17,6 +21,11 @@ public:
     std::vector<NavItem> navItems;
     NavGeometry navGeo;
     int navSelected = 0;
+    std::vector<CheckBox> checkboxes;
+    std::vector<RadioButton> radios;
+    int radioSelected = 0;
+    std::vector<ToggleSwitch> toggles;
+    std::vector<ProgressBar> progressBars;
     float dpiScale = 1.0f;
 
     // 创建窗口 + 初始化渲染 + 填充按钮
@@ -40,6 +49,7 @@ private:
     float titleY = 0, subY = 0;
     float cardX = 0, cardY = 0, cardW = 0, cardH = 0;
     float contentX = 0;     // 右侧内容区起点（导航栏宽度之后）
+    float row1Y = 0, row2Y = 0, row3Y = 0;   // 控件行纵向坐标
 
     // 布局
     void Layout();

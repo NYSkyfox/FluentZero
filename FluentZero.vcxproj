@@ -74,6 +74,14 @@
     <ClCompile Include="src\UI\Button.cpp" />
     <ClInclude Include="src\UI\NavPane.h" />
     <ClCompile Include="src\UI\NavPane.cpp" />
+    <ClInclude Include="src\UI\CheckBox.h" />
+    <ClCompile Include="src\UI\CheckBox.cpp" />
+    <ClInclude Include="src\UI\RadioButton.h" />
+    <ClCompile Include="src\UI\RadioButton.cpp" />
+    <ClInclude Include="src\UI\ToggleSwitch.h" />
+    <ClCompile Include="src\UI\ToggleSwitch.cpp" />
+    <ClInclude Include="src\UI\ProgressBar.h" />
+    <ClCompile Include="src\UI\ProgressBar.cpp" />
     <!-- Core 层 -->
     <ClInclude Include="src\Core\App.h" />
     <ClCompile Include="src\Core\App.cpp" />
