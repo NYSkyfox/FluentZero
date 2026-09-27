@@ -23,31 +23,36 @@ void DrawToggleSwitch(Renderer& r, const ToggleSwitch& ts, const FluentTheme& th
     float knobX = tx + inset + knobR + tT * (trackW - 2 * inset - knobD);
     float knobY = ty + trackH * 0.5f;
 
-    // 轨道：OFF = 白底（深色主题 #333）；ON = accent 实底（按 tT 过渡）
+    // 轨道（WinUI 3 主题资源）：
+//   OFF 填充 = 6% 黑（浅）/ 10% 白（深），hover 加深到 8%/12%
+//   ON  填充 = accent 实底，hover 提亮 12%
+//   OFF 描边 = 37% 黑（浅）/ 22% 白（深），hover 加深；ON 描边 = 深一度 accent
     D2D1_ROUNDED_RECT track = FzRR(tx, ty, tx + trackW, ty + trackH, trackH * 0.5f);
-    D2D1_COLOR_F off = th.light ? FzCol(1, 1, 1, 1) : FzCol(0.2f, 0.2f, 0.2f, 1);
-    D2D1_COLOR_F on  = FzCol(th.accent.r, th.accent.g, th.accent.b, 1);
+    D2D1_COLOR_F off = th.light
+        ? Lerp(FzCol(0, 0, 0, 0.06f), FzCol(0, 0, 0, 0.08f), hT)
+        : Lerp(FzCol(1, 1, 1, 0.10f), FzCol(1, 1, 1, 0.12f), hT);
+    D2D1_COLOR_F on = FzCol(th.accent.r, th.accent.g, th.accent.b, 1);
+    on = Lerp(on, Brighten(on, 0.12f), hT);               // ON hover 提亮
     rt->FillRoundedRectangle(&track, r.MakeBrush(off).Get());
     if (tT > 0.003f)
         rt->FillRoundedRectangle(&track, r.MakeBrush(FzCol(on.r, on.g, on.b, tT)).Get());
-    // 轨道描边（常显 1px）：OFF = 灰（hover 加深）；ON = 深一度的 accent
-    D2D1_COLOR_F offEdge = th.light ? FzCol(0.54f, 0.54f, 0.54f, 1) : FzCol(0.75f, 0.75f, 0.75f, 1);
-    offEdge = Brighten(offEdge, -0.10f * hT);              // hover 加深 10%
-    D2D1_COLOR_F onEdge = Brighten(on, -0.12f);             // accent 压暗 12%
+    D2D1_COLOR_F offEdge = th.light
+        ? Brighten(FzCol(0, 0, 0, 0.37f), -0.10f * hT)    // hover 加深 10%
+        : Brighten(FzCol(1, 1, 1, 0.22f),  0.10f * hT);
+    D2D1_COLOR_F onEdge = Brighten(on, -0.12f);
     D2D1_COLOR_F edge = Lerp(offEdge, onEdge, tT);
     rt->DrawRoundedRectangle(&track, r.MakeBrush(edge).Get(), 1.0f);
 
-    // 滑块：纯白实心圆 + 1px 描边——OFF 灰边（浅 #8A8A8A / 深 #B3B3B3）保证白滑块
-    // 在白色 OFF 轨道上可见；ON 态描边透明（accent 底上白滑块自明）。随 tT 过渡
+    // 滑块：纯白实心圆 + 1px 下偏移黑阴影（ShadowThemeColor ≈ 25% 黑，深色主题加重）。
+    // 投影是 WinUI 3 白色滑块与浅灰轨道分层的核心手段（模板内为 DropShadowEffect）
+    D2D1_ELLIPSE shadow{};
+    shadow.point.x = knobX; shadow.point.y = knobY + 1 * s;
+    shadow.radiusX = knobR; shadow.radiusY = knobR;
+    rt->FillEllipse(&shadow, r.MakeBrush(FzCol(0, 0, 0, th.light ? 0.25f : 0.50f)).Get());
     D2D1_ELLIPSE knob{};
     knob.point.x = knobX; knob.point.y = knobY;
     knob.radiusX = knobR; knob.radiusY = knobR;
     rt->FillEllipse(&knob, r.MakeBrush(FzCol(1, 1, 1, 1)).Get());
-    D2D1_COLOR_F knobOffEdge = th.light ? FzCol(0.54f, 0.54f, 0.54f, 1) : FzCol(0.70f, 0.70f, 0.70f, 1);
-    D2D1_COLOR_F knobEdge = Lerp(knobOffEdge,
-        FzCol(knobOffEdge.r, knobOffEdge.g, knobOffEdge.b, 0), tT);
-    if (knobEdge.a > 0.01f)
-        rt->DrawEllipse(&knob, r.MakeBrush(knobEdge).Get(), 1.0f);
 
     // 标签 + 实时状态（On/Off）
     r.DrawText(ts.label + L" : " + (ts.on ? L"On" : L"Off"),
