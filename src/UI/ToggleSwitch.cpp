@@ -15,40 +15,33 @@ void DrawToggleSwitch(Renderer& r, const ToggleSwitch& ts, const FluentTheme& th
 
     const float trackW = 40 * s, trackH = 20 * s;
     float tx = ts.x, ty = ts.y + (ts.h - trackH) * 0.5f;
-    const float inset = 2 * s;               // 圆钮到轨道左右内壁的间隙（原为 0，贴边，现增大一点点）
-    // 圆钮直径 14px（关）→ 12px（开），Win10 规范开态微缩
-    float knobD = trackH - 6 * s - 2 * s * tT, knobR = knobD * 0.5f;
-    // 圆钮中心：关=左，开=右，按 toggleT 滑动（两端各留 inset 间隙，不再贴边）
+    // ===== WinUI 3（Windows 11 Fluent）ToggleSwitch 规范 =====
+    const float inset = 3 * s;               // 滑块到轨道内壁间隙
+    // 滑块：12px（关）→ 14px（开），Win11 开态放大（与 Win10 微缩相反）；纯白、无投影、无描边
+    float knobD = trackH - 8 * s + 2 * s * tT, knobR = knobD * 0.5f;
+    // 滑块中心：关=左，开=右，按 toggleT 滑动
     float knobX = tx + inset + knobR + tT * (trackW - 2 * inset - knobD);
     float knobY = ty + trackH * 0.5f;
 
-    // 轨道：关=白底黑边，开=accent 填充（按 tT 过渡）
+    // 轨道：OFF = 白底（深色主题 #333）；ON = accent 实底（按 tT 过渡）
     D2D1_ROUNDED_RECT track = FzRR(tx, ty, tx + trackW, ty + trackH, trackH * 0.5f);
-    D2D1_COLOR_F off = th.btnFill, on = FzCol(th.accent.r, th.accent.g, th.accent.b, 1);
-    if (tT > 0.003f) {
-        rt->FillRoundedRectangle(&track, r.MakeBrush(off).Get());
+    D2D1_COLOR_F off = th.light ? FzCol(1, 1, 1, 1) : FzCol(0.2f, 0.2f, 0.2f, 1);
+    D2D1_COLOR_F on  = FzCol(th.accent.r, th.accent.g, th.accent.b, 1);
+    rt->FillRoundedRectangle(&track, r.MakeBrush(off).Get());
+    if (tT > 0.003f)
         rt->FillRoundedRectangle(&track, r.MakeBrush(FzCol(on.r, on.g, on.b, tT)).Get());
-    } else {
-        rt->FillRoundedRectangle(&track, r.MakeBrush(off).Get());
-        rt->DrawRoundedRectangle(&track, r.MakeBrush(Lerp(th.btnBorder, th.accent, 0.5f * hT)).Get(), 1.0f);
-    }
+    // 轨道描边（常显 1px）：OFF = 灰（hover 加深）；ON = 深一度的 accent
+    D2D1_COLOR_F offEdge = th.light ? FzCol(0.54f, 0.54f, 0.54f, 1) : FzCol(0.75f, 0.75f, 0.75f, 1);
+    offEdge = Brighten(offEdge, -0.10f * hT);              // hover 加深 10%
+    D2D1_COLOR_F onEdge = Brighten(on, -0.12f);             // accent 压暗 12%
+    D2D1_COLOR_F edge = Lerp(offEdge, onEdge, tT);
+    rt->DrawRoundedRectangle(&track, r.MakeBrush(edge).Get(), 1.0f);
 
-    // 圆钮（ON 态纯白无黑边：描边随 tT 从主题色过渡到白色，还原 Win10 原版观感）
+    // 滑块：纯白实心圆（WinUI 3 模板无投影/无描边，层次靠轨道描边）
     D2D1_ELLIPSE knob{};
     knob.point.x = knobX; knob.point.y = knobY;
     knob.radiusX = knobR; knob.radiusY = knobR;
     rt->FillEllipse(&knob, r.MakeBrush(FzCol(1, 1, 1, 1)).Get());
-    // 软投影：+1px 下偏移（浅色 15% 黑 / 深色 35% 黑），给白滑块"浮起"感
-    D2D1_ELLIPSE shadow{};
-    shadow.point.x = knobX; shadow.point.y = knobY + 1 * s;
-    shadow.radiusX = knobR; shadow.radiusY = knobR;
-    rt->FillEllipse(&shadow, r.MakeBrush(FzCol(0, 0, 0, th.light ? 0.15f : 0.35f)).Get());
-    // 圆钮描边：关态深色边、开态中灰边（45%），随 tT 平滑过渡，
-    // 保证白色滑块在浅灰/白底上始终有清晰轮廓
-    D2D1_COLOR_F offEdge = th.text1;
-    D2D1_COLOR_F onEdge = FzCol(th.text1.r, th.text1.g, th.text1.b, 0.45f);
-    D2D1_COLOR_F knobEdge = Lerp(offEdge, onEdge, tT);
-    rt->DrawEllipse(&knob, r.MakeBrush(knobEdge).Get(), 1.0f);
 
     // 标签 + 实时状态（On/Off）
     r.DrawText(ts.label + L" : " + (ts.on ? L"On" : L"Off"),
