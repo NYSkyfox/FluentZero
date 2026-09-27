@@ -28,18 +28,13 @@ void DrawNavPane(Renderer& r, const NavGeometry& g, const std::vector<NavItem>& 
     l1.x = x + w - 0.5f; l1.y = y + h;
     rt->DrawLine(l0, l1, r.MakeBrush(th.navBorder).Get(), 1.0f);
 
-    // 2b) 顶部标题（汉堡按钮右侧独立位置，不与图标叠放；垂直与图标行居中；折叠时淡出）
-    if (eT > 0.02f) {
-        D2D1_COLOR_F titleC = th.text1;
-        titleC.a *= eT;
-        r.DrawText(L"FluentZero", x + 60 * s, 21 * s, FzMx(20 * s, w - 72 * s),
-                   L"Segoe UI", 14 * s, (DWRITE_FONT_WEIGHT)600, titleC);
-    }
-    // 2c) 折叠/展开按钮（Win10 规范：48x48 命中区，hover 画 40px 圆角灰底内缩，
-    //     图标 20px GlobalNavButton，与下方导航图标左边界严格对齐 x+22；
-    //     折叠/展开两态图标不变）
+    // 2b) 侧边栏顶部只留汉堡按钮（应用标题在窗口原生标题栏，侧边栏内不放标题，
+//     避免与导航图标挤占基线——2018 规范）
+    // 2c) 折叠/展开按钮（2018 NavigationView 规范：48x48 命中区，hover 画 40px
+    //     圆角灰底，图标 20px GlobalNavButton，左边界 = NAV_PADDING_LEFT 16px，
+    //     与下方导航图标严格共享同一垂直基准线）
     {
-        const float hit = 48 * s;                 // 命中热区（含 hover 圆角外扩 4px 的 Win10 行为）
+        const float hit = 48 * s;                 // 命中热区
         const float bs = 40 * s;                  // hover 圆角底视觉尺寸
         float bx = x + (hit - bs) * 0.5f, by = 8 * s + (hit - bs) * 0.5f;
         D2D1_ROUNDED_RECT bb = FzRR(bx, by, bx + bs, by + bs, 4 * s);
@@ -48,14 +43,14 @@ void DrawNavPane(Renderer& r, const NavGeometry& g, const std::vector<NavItem>& 
             rt->FillRoundedRectangle(&bb, r.MakeBrush(hv).Get());
         }
         wchar_t gl[2] = { 0xE700, 0 };   // GlobalNavButton（☰ 三条杠）
-        r.DrawText(gl, x + 22 * s, by + bs * 0.5f - 10 * s, 24 * s, L"Segoe MDL2 Assets",
+        r.DrawText(gl, x + 16 * s, by + bs * 0.5f - 10 * s, 24 * s, L"Segoe MDL2 Assets",
                    20 * s, DWRITE_FONT_WEIGHT_NORMAL, th.text1);
     }
 
     // 3) 每个导航项
-    const float padL = 8 * s;     // hover 条左右内缩
-    const float iconX = x + 22 * s;   // 图标左边界（与汉堡图标严格对齐）
-    const float textX = x + 58 * s;   // 文字左边界（图标 20px + 16px 间距）
+    const float padL = 8 * s;     // hover/选中背景条左右内缩
+    const float iconX = x + 16 * s;   // 图标左边界 = NAV_PADDING_LEFT（汉堡/导航图标共享基准线）
+    const float textX = x + 52 * s;   // 文字左边界 = 16 + 20(图标) + 16(间距)
     const float indW = 3 * s;     // 选中指示条宽
     for (int i = 0; i < (int)items.size(); i++) {
         const NavItem& it = items[i];
@@ -80,11 +75,17 @@ void DrawNavPane(Renderer& r, const NavGeometry& g, const std::vector<NavItem>& 
             }
         }
 
-        // 3c) 选中指示条（2018 NavigationView：贴左缘 3×16px 圆角短条，与图标垂直居中）
+        // 3c) 选中态（2018 NavigationView）：常驻浅灰圆角背景（左右内缩 8px）
+        //     + 离左缘 8px 的 3×16px 圆角强调色短条（与图标垂直居中）
         if (it.selected) {
+            D2D1_ROUNDED_RECT sel = FzRR(x + padL, top + 2 * s, x + w - padL,
+                                         top + ih - 2 * s, 4 * s);
+            D2D1_COLOR_F sv = th.navHover;   // 浅灰 rgba(0,0,0,0.06)
+            rt->FillRoundedRectangle(&sel, r.MakeBrush(sv).Get());
+
             const float indH = 16 * s;
-            D2D1_ROUNDED_RECT ind = FzRR(x, top + (ih - indH) * 0.5f,
-                                         x + indW, top + (ih - indH) * 0.5f + indH,
+            D2D1_ROUNDED_RECT ind = FzRR(x + 8 * s, top + (ih - indH) * 0.5f,
+                                         x + 8 * s + indW, top + (ih - indH) * 0.5f + indH,
                                          indW * 0.5f);
             D2D1_COLOR_F ac = FzCol(th.accent.r, th.accent.g, th.accent.b, 1);
             rt->FillRoundedRectangle(&ind, r.MakeBrush(ac).Get());

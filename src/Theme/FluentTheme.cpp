@@ -26,7 +26,7 @@ FluentTheme FluentTheme::Create(bool light) {
         t.btnText      = FzCol(0, 0, 0, 0.96f);
         t.reveal       = FzCol(0, 0, 0, 0.30f);
         t.navPane      = FzCol(0.953f, 0.953f, 0.953f, 0.96f); // 接近实底浅灰（CI 软渲染磨砂不工作，需挡住桌面穿透）
-        t.navBorder    = FzCol(0, 0, 0, 0.03f);   // 极淡分割（Fluent 忌讳生硬硬分割）
+        t.navBorder    = FzCol(0, 0, 0, 0.02f);   // 极淡分割（Fluent 忌讳生硬硬分割）
         t.navHover     = FzCol(0, 0, 0, 0.06f);
         t.navSweep     = FzCol(0, 0, 0, 0.05f);
     } else {
