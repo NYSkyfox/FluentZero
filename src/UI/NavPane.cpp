@@ -14,8 +14,12 @@ void DrawNavPane(Renderer& r, const NavGeometry& g, const std::vector<NavItem>& 
 
     float x = g.x, y = g.y, w = g.w, h = g.h;
 
-    // 1) 侧边栏磨砂：不添加任何颜色遮罩，纯靠 DWM BlurBehind 模糊透出后方
-    //    （整窗 Clear 为透明，此处不填底色 => 侧边栏 = 磨砂层本身，Win10 原生侧边栏观感）
+    // 1) 侧边栏底色：浅色半透明（不是黑色遮罩）。
+//    注：CI 的 WARP 软渲染下 DWM BlurBehind 不真正模糊，纯透明会直接透出桌面图标；
+//    加回高不透明浅底（本地真 Windows 上仍是半透明磨砂观感，CI 上挡住穿透）
+    D2D1_RECT_F pane{};
+    pane.left = x; pane.top = y; pane.right = x + w; pane.bottom = y + h;
+    rt->FillRectangle(&pane, r.MakeBrush(th.navPane).Get());
 
     // 2) 右侧 1px 分割线
     D2D1_POINT_2F l0{}, l1{};

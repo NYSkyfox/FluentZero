@@ -25,7 +25,7 @@ FluentTheme FluentTheme::Create(bool light) {
         t.btnBorder    = FzCol(0, 0, 0, 0.10f);
         t.btnText      = FzCol(0, 0, 0, 0.96f);
         t.reveal       = FzCol(0, 0, 0, 0.30f);
-        t.navPane      = FzCol(1, 1, 1, 0.35f);
+        t.navPane      = FzCol(0.953f, 0.953f, 0.953f, 0.96f); // 接近实底浅灰（CI 软渲染磨砂不工作，需挡住桌面穿透）
         t.navBorder    = FzCol(0, 0, 0, 0.06f);
         t.navHover     = FzCol(0, 0, 0, 0.06f);
         t.navSweep     = FzCol(0, 0, 0, 0.05f);
@@ -41,7 +41,7 @@ FluentTheme FluentTheme::Create(bool light) {
         t.btnBorder    = FzCol(1, 1, 1, 0.10f);
         t.btnText      = FzCol(1, 1, 1, 0.96f);
         t.reveal       = FzCol(1, 1, 1, 0.30f);
-        t.navPane      = FzCol(1, 1, 1, 0.08f);
+        t.navPane      = FzCol(0.125f, 0.125f, 0.125f, 0.96f); // 接近实底深灰（CI 软渲染磨砂不工作，需挡住桌面穿透）
         t.navBorder    = FzCol(1, 1, 1, 0.08f);
         t.navHover     = FzCol(1, 1, 1, 0.08f);
         t.navSweep     = FzCol(1, 1, 1, 0.12f);

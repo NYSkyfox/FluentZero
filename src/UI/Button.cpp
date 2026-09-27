@@ -40,14 +40,10 @@ void DrawButton(Renderer& r, const Button& b, const FluentTheme& th, float s) {
             r.MakeBrush(rc_).Get(), 1.5f * s);
     }
 
-    // 文字（水平居中）。去 Segoe MDL2 图标：CI 的 Windows Server 无该图标字体字形，
-    // 图标字形缺失会导致整行绘制异常；纯文字最稳，且按钮文字已改为"类型名"
-    float tw = r.Measure(b.text, L"Segoe UI", 13 * s,
-        b.primary ? (DWRITE_FONT_WEIGHT)600 : DWRITE_FONT_WEIGHT_NORMAL);
-    float cx = b.x + (b.w - tw) * 0.5f;
-    float cy = b.y + b.h * 0.5f;
-    r.DrawText(b.text, cx, cy - 8 * s, b.w, L"Segoe UI", 13 * s,
-        b.primary ? (DWRITE_FONT_WEIGHT)600 : DWRITE_FONT_WEIGHT_NORMAL, txt);
+    // 文字：固定左对齐（不用 Measure 居中——CI 软渲染下 Measure 可能返回异常值
+    // 导致 cx 为巨大负数、文字画到屏幕外）。与 CheckBox 等控件用同一坐标模式
+    r.DrawText(b.text, b.x + 12 * s, b.y + b.h * 0.5f - 8 * s, b.w,
+               L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL, txt);
 }
 
 int HitButton(const std::vector<Button>& buttons, float x, float y) {
