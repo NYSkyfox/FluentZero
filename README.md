@@ -63,7 +63,12 @@ Actions 页面 → `build` → **Run workflow**，产物在 Artifacts 里下载�
     ├── Rendering/        第 4 层 · 渲染后端（D2D1 + DirectWrite）
     │   └── Renderer.{h,cpp}     HwndRenderTarget 基类 + 文本绘制工具
     ├── UI/               第 5 层 · UI 控件（依赖 Rendering + Theme + Utils）
-    │   └── Button.{h,cpp}       Reveal 按钮：状态 + 动画 + 绘制 + 命中
+    │   ├── Button.{h,cpp}        Reveal 按钮：状态 + 动画 + 绘制 + 命中
+    │   ├── NavPane.{h,cpp}       侧边导航：磨砂面板 + hover 渐显 + Reveal 光带
+    │   ├── CheckBox.{h,cpp}      复选框：accent 填充 + 白色勾
+    │   ├── RadioButton.{h,cpp}   单选按钮：圆外圈 + 中心点（组内互斥）
+    │   ├── ToggleSwitch.{h,cpp}  开关：轨道 + 滑动圆钮
+    │   └── ProgressBar.{h,cpp}   进度条：轨道 + accent 填充
     └── Core/             第 6 层 · 应用编排（依赖所有层）
         └── App.{h,cpp}          窗口 / 布局 / 输入 / 消息循环 / 动画调度
 ```
@@ -114,15 +119,16 @@ HWND（WS_EX_NOREDIRECTIONBITMAP，保留原生标题栏）
 | 控件 | 状态 | 备注 |
 |---|:---:|---|
 | Button | ✅ | 含 primary 强调色变体 + Reveal 悬停 |
-| ToggleSwitch | ⏳ | |
-| CheckBox | ⏳ | |
-| RadioButton | ⏳ | |
+| CheckBox | ✅ | 18px 圆角方框，accent 填充 + 白色勾，hover/check 动画 |
+| RadioButton | ✅ | 圆外圈 + 中心 accent 圆点，组内互斥（Core 管理）|
+| ToggleSwitch | ✅ | 40×20 轨道 + 滑动圆钮，开/关 accent 过渡 |
+| ProgressBar | ✅ | 标签 + 轨道 + accent 填充，value 由 App 驱动 |
 | ComboBox | ⏳ | 含弹出层，较复杂 |
 | Slider | ⏳ | 含拖拽 thumb |
 | TextBox / PasswordBox | ❌ | 需 IME，手搓最大坑，有意推迟 |
 | NumberBox / AutoSuggestBox | ❌ | 低优先级 |
 | DatePicker / TimePicker | ❌ | 依赖弹出面板 |
-| ProgressBar / ProgressRing | ⏳ | 纯绘制，相对简单 |
+| ProgressBar / ProgressRing | ✅ / ⏳ | ProgressBar 已完成；ProgressRing 未做 |
 
 **数据 / 容器控件**
 
@@ -143,13 +149,13 @@ HWND（WS_EX_NOREDIRECTIONBITMAP，保留原生标题栏）
 | 标题 / 副标题（TextBlock） | ✅ | |
 | Border / Grid / StackPanel | — | 由 Core 布局逻辑直接承担，无独立控件抽象 |
 
-**进度小结**：已覆盖核心交互控件 **Button** + 导航组件 **NavPane** + 非交互区块（Card），
-其余按上表优先级推进。
+**进度小结**：已覆盖核心交互控件 **Button / CheckBox / RadioButton / ToggleSwitch / ProgressBar**
++ 导航组件 **NavPane** + 非交互区块（Card），其余按上表优先级推进。
 
 ### 里程碑
 
 - [ ] 完整版 Reveal（沿边扫过）
-- [ ] CheckBox / ToggleSwitch / RadioButton
+- [x] CheckBox / ToggleSwitch / RadioButton / ProgressBar
 - [ ] 焦点管理（Tab 导航 + 焦点描边）
 - [ ] 滚动条 / 列表（ListView 雏形）
 - [ ] 窗口圆角可选（Win10 无圆角，Win11 用 DWM 属性）
