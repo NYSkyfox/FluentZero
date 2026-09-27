@@ -37,11 +37,17 @@ void DrawToggleSwitch(Renderer& r, const ToggleSwitch& ts, const FluentTheme& th
     D2D1_COLOR_F edge = Lerp(offEdge, onEdge, tT);
     rt->DrawRoundedRectangle(&track, r.MakeBrush(edge).Get(), 1.0f);
 
-    // 滑块：纯白实心圆（WinUI 3 模板无投影/无描边，层次靠轨道描边）
+    // 滑块：纯白实心圆 + 1px 描边——OFF 灰边（浅 #8A8A8A / 深 #B3B3B3）保证白滑块
+    // 在白色 OFF 轨道上可见；ON 态描边透明（accent 底上白滑块自明）。随 tT 过渡
     D2D1_ELLIPSE knob{};
     knob.point.x = knobX; knob.point.y = knobY;
     knob.radiusX = knobR; knob.radiusY = knobR;
     rt->FillEllipse(&knob, r.MakeBrush(FzCol(1, 1, 1, 1)).Get());
+    D2D1_COLOR_F knobOffEdge = th.light ? FzCol(0.54f, 0.54f, 0.54f, 1) : FzCol(0.70f, 0.70f, 0.70f, 1);
+    D2D1_COLOR_F knobEdge = Lerp(knobOffEdge,
+        FzCol(knobOffEdge.r, knobOffEdge.g, knobOffEdge.b, 0), tT);
+    if (knobEdge.a > 0.01f)
+        rt->DrawEllipse(&knob, r.MakeBrush(knobEdge).Get(), 1.0f);
 
     // 标签 + 实时状态（On/Off）
     r.DrawText(ts.label + L" : " + (ts.on ? L"On" : L"Off"),
