@@ -155,21 +155,21 @@ void App::Layout() {
             CheckBox& c = checkboxes[i];
             c.x = colLX; c.y = ly; c.h = 28 * s;
             float tw = Measure(c.label, L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL);
-            c.w = 20 * s + 8 * s + tw;   // 复选框现 20px
+            c.w = 20 * s + 8 * s + tw + 84 * s;   // 复选框 20px + 状态后缀（Unchecked）预留
             ly += 28 * s + (i < (int)checkboxes.size() - 1 ? 8 * s : 12 * s);
         }
         for (int i = 0; i < (int)toggles.size(); i++) {      // ToggleSwitch ×2（竖排）
             ToggleSwitch& c = toggles[i];
             c.x = colLX; c.y = ly; c.h = 28 * s;
             float tw = Measure(c.label, L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL);
-            c.w = 40 * s + 8 * s + tw;
+            c.w = 40 * s + 8 * s + tw + 48 * s;   // 轨道 40px + 状态后缀（On/Off）预留
             ly += 28 * s + (i < (int)toggles.size() - 1 ? 8 * s : 12 * s);
         }
         for (int i = 0; i < (int)radios.size(); i++) {       // RadioButton ×3（竖排）
             RadioButton& c = radios[i];
             c.x = colLX; c.y = ly; c.h = 28 * s;
             float tw = Measure(c.label, L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL);
-            c.w = 20 * s + 8 * s + tw;   // 单选按钮现 20px
+            c.w = 20 * s + 8 * s + tw + 84 * s;   // 单选按钮 20px + 状态后缀（Not selected）预留
             ly += 28 * s + (i < (int)radios.size() - 1 ? 6 * s : 0);
         }
     }
@@ -198,7 +198,7 @@ void App::Layout() {
         }
         gR3Y = ry;  ry += 16 * s + 10 * s;            // "Rating"
         {
-            float ratingW = 20 * s * 5 + 10 * s;      // 5 星宽（星间距现 20px）
+            float ratingW = FzMx(20 * s * 5 + 10 * s, 160 * s);  // max(5 星宽, 标签+星级行宽)
             for (int i = 0; i < (int)ratings.size(); i++) {
                 RatingControl& c = ratings[i];
                 c.x = colRX; c.y = ry; c.h = 30 * s; c.w = ratingW;
