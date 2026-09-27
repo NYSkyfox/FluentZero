@@ -1,8 +1,11 @@
-# FluentZero CI 截图脚本 v3
+# FluentZero CI 截图脚本 v4（全屏截图）
 # 关键点：
 #   - FindWindow 是 user32 的宏（真实导出 FindWindowW/A），P/Invoke 必须 EntryPoint="FindWindowW"
 #     本脚本改用 EnumWindows 按类名找窗口（EnumWindows 是真实导出，最可靠）
-#   - NOREDIRECTIONBITMAP 窗口内容由 DWM 合成到屏幕，用 CopyFromScreen 截窗口区域
+#   - NOREDIRECTIONBITMAP 窗口半透明，磨砂(DWM)会把窗口后方内容模糊透出；
+#     Runner 上窗口后方是 Actions 终端，故截图会透出终端日志。
+#   - 本版本改为【全屏截图】：截取整个虚拟桌面，便于看清窗口在桌面的位置、
+#     任务栏，以及磨砂背后实际是什么。
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
@@ -96,13 +99,25 @@ $w = $rect.r - $rect.l; $h = $rect.b - $rect.t
 Write-Host "窗口矩形: ($($rect.l),$($rect.t)) ${w}x${h}"
 if ($w -lt 20 -or $h -lt 20) { throw "窗口尺寸异常 ${w}x${h}" }
 
-# CopyFromScreen 截窗口区域（NOREDIRECTIONBITMAP 内容 DWM 已合成到屏幕）
-$bmp = New-Object System.Drawing.Bitmap($w, $h)
-$g = [System.Drawing.Graphics]::FromImage($bmp)
-$g.CopyFromScreen($rect.l, $rect.t, 0, 0, (New-Object System.Drawing.Size($w, $h)))
-$g.Dispose()
+# 全屏截图：截取整个虚拟桌面（含窗口、任务栏、磨砂背后内容）
+$screen = [System.Windows.Forms.SystemInformation]::VirtualScreen
+$sw = $screen.Width; $sh = $screen.Height
+Write-Host "虚拟屏幕: ($($screen.X),$($screen.Y)) ${sw}x${sh}"
+if ($sw -lt 20 -or $sh -lt 20) {
+    # 兜底：虚拟屏幕取不到时退回窗口区域截图
+    $sw = $w; $sh = $h
+    $bmp = New-Object System.Drawing.Bitmap($sw, $sh)
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $g.CopyFromScreen($rect.l, $rect.t, 0, 0, (New-Object System.Drawing.Size($sw, $sh)))
+    $g.Dispose()
+} else {
+    $bmp = New-Object System.Drawing.Bitmap($sw, $sh)
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    $g.CopyFromScreen($screen.X, $screen.Y, 0, 0, (New-Object System.Drawing.Size($sw, $sh)))
+    $g.Dispose()
+}
 $bmp.Save($shotPath, [System.Drawing.Imaging.ImageFormat]::Png)
 $bmp.Dispose()
-Write-Host ("已保存截图: {0} ({1} KB)" -f $shotPath, [math]::Round((Get-Item $shotPath).Length/1KB, 1))
+Write-Host ("已保存全屏截图: {0} ({1} KB)" -f $shotPath, [math]::Round((Get-Item $shotPath).Length/1KB, 1))
 
 Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
