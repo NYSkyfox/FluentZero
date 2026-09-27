@@ -69,9 +69,21 @@ HRESULT App::Create() {
     // ProgressBar（演示自动推进）
     progressBars.push_back({ L"Syncing…", 0.6f, 0, 0, 0, 0, true });
 
+    // ProgressRing（确定态，演示自动推进）
+    progressRings.push_back({ L"Loading…", 0.4f, 0, 0, 0, 0, true });
+    progressRings.push_back({ L"Uploading", 0.8f, 0, 0, 0, 0, true });
+
+    // Slider（可拖拽）
+    sliders.push_back({ L"Brightness", 0.70f, 0, 0, 0, 0, 0, false, false });
+    sliders.push_back({ L"Volume",     0.45f, 0, 0, 0, 0, 0, false, false });
+
+    // RatingControl（星级评分）
+    ratings.push_back({ L"How do you rate this?", 4, 0, 0, 0, 0, 0 });
+    ratings.push_back({ L"Recommend it?",         3, 0, 0, 0, 0, 0 });
+
     hwnd = CreateWindowExW(0, wc.lpszClassName, L"FluentZero",
         WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME,
-        CW_USEDEFAULT, CW_USEDEFAULT, 780, 640,
+        CW_USEDEFAULT, CW_USEDEFAULT, 780, 720,
         nullptr, nullptr, wc.hInstance, this);
     if (!hwnd)
         return E_FAIL;
@@ -188,12 +200,49 @@ void App::Layout() {
     }
     y += 30 * s + 14 * s;
 
-    // 进度条
+    // 进度条 + 进度环（并排）
     {
         ProgressBar& p = progressBars[0];
-        p.y = y; p.h = 22 * s; p.x = contentX; p.w = Fzmn(cw, 260 * s);
+        p.y = y; p.h = 22 * s; p.x = contentX; p.w = Fzmn(cw * 0.42f, 260 * s);
+    }
+    for (int i = 0; i < (int)progressRings.size(); i++) {
+        ProgressRing& rg = progressRings[i];
+        float halfW = Fzmn(cw, 150 * s);
+        rg.y = y; rg.h = 22 * s;
+        rg.x = Fzmn(contentX + progressBars[0].w + 28 * s + i * (halfW + 12 * s), contentX + cw - halfW);
+        rg.w = halfW;
     }
     y += 22 * s + 18 * s;
+
+    // 控件行 4：Slider ×2
+    row4Y = y;
+    {
+        float itemH = 30 * s, ix = contentX;
+        float halfW = Fzmn(cw, 150 * s);
+        for (int i = 0; i < (int)sliders.size(); i++) {
+            Slider& c = sliders[i];
+            c.y = row4Y; c.h = itemH;
+            c.x = Fzmn(ix, contentX + cw - halfW);
+            c.w = halfW;
+            ix += halfW + 24 * s;
+        }
+    }
+    y += 30 * s + 16 * s;
+
+    // 控件行 5：RatingControl ×2
+    row5Y = y;
+    {
+        float itemH = 30 * s, ix = contentX;
+        float ratingW = 22 * s * 5 + 10 * s;   // 5 星宽
+        for (int i = 0; i < (int)ratings.size(); i++) {
+            RatingControl& c = ratings[i];
+            c.y = row5Y; c.h = itemH;
+            c.x = Fzmn(ix, contentX + cw - ratingW);
+            c.w = ratingW;
+            ix += ratingW + 30 * s;
+        }
+    }
+    y += 30 * s + 16 * s;
 
     cardX = contentX; cardY = y;
     cardW = cw;
@@ -260,7 +309,19 @@ void App::onDraw() {
     for (auto& p : progressBars)
         DrawProgressBar(*this, p, th, s);
 
-    // 9) 信息卡
+    // 9) ProgressRing
+    for (auto& rg : progressRings)
+        DrawProgressRing(*this, rg, th, s);
+
+    // 10) Slider
+    for (auto& sl : sliders)
+        DrawSlider(*this, sl, th, s);
+
+    // 11) RatingControl
+    for (auto& rtg : ratings)
+        DrawRatingControl(*this, rtg, th, s);
+
+    // 12) 信息卡
     DrawCard();
 }
 
@@ -309,6 +370,18 @@ void App::OnMove(float x, float y) {
     int rh = HitRadioButton(radios, x, y);
     for (int i = 0; i < (int)radios.size(); i++)
         radios[i].hot = (i == rh);
+    // Slider hover
+    int sh = HitSlider(sliders, x, y);
+    for (int i = 0; i < (int)sliders.size(); i++)
+        sliders[i].hot = (i == sh);
+    // 拖拽中：跟随指针更新 value
+    if (sliderDragIndex >= 0 && sliderDragIndex < (int)sliders.size()) {
+        Slider& d = sliders[sliderDragIndex];
+        if (d.w > 1.0f) d.value = FzMx(0.0f, Fzmn(1.0f, (x - d.x) / d.w));
+    }
+    // RatingControl 悬停预览（命中星号 1..5，0 表示离开）
+    for (auto& rtg : ratings)
+        rtg.hover = (y >= rtg.y && y <= rtg.y + rtg.h) ? RatingStarAt(rtg, x, dpiScale) : 0;
     needsDraw = true;
 }
 
@@ -316,6 +389,16 @@ void App::OnLButtonDown(float x, float y) {
     int hit = HitButton(buttons, x, y);
     if (hit >= 0) {
         buttons[hit].pressed = true;
+        SetCapture(hwnd);
+        needsDraw = true;
+        return;
+    }
+    // Slider 按下：开始拖拽并立即设值
+    int sh = HitSlider(sliders, x, y);
+    if (sh >= 0 && sliders[sh].w > 1.0f) {
+        sliderDragIndex = sh;
+        sliders[sh].dragging = true;
+        sliders[sh].value = FzMx(0.0f, Fzmn(1.0f, (x - sliders[sh].x) / sliders[sh].w));
         SetCapture(hwnd);
         needsDraw = true;
     }
@@ -357,6 +440,17 @@ void App::OnLButtonUp(float x, float y) {
         radioSelected = rh;
         needsDraw = true;
     }
+    // Slider 结束拖拽
+    if (sliderDragIndex >= 0 && sliderDragIndex < (int)sliders.size()) {
+        sliders[sliderDragIndex].dragging = false;
+        sliderDragIndex = -1;
+    }
+    // RatingControl 点击打分
+    int rhg = HitRatingControl(ratings, x, y);
+    if (rhg >= 0) {
+        int star = RatingStarAt(ratings[rhg], x, dpiScale);
+        if (star >= 1) { ratings[rhg].value = star; needsDraw = true; }
+    }
     needsDraw = true;
 }
 
@@ -387,6 +481,18 @@ void App::Update(float dt) {
             animating = true;
         }
     }
+    // ProgressRing 自动推进（演示）
+    for (auto& rg : progressRings) {
+        if (rg.active) {
+            rg.value += dt * 0.30f;
+            if (rg.value > 1.0f) rg.value = 0.0f;
+            animating = true;
+        }
+    }
+    // Slider hover 动画
+    for (auto& sl : sliders)
+        if (UpdateSlider(sl, dt))
+            animating = true;
 }
 
 // ==================== 消息循环 ====================
@@ -471,6 +577,8 @@ LRESULT App::WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         for (auto& c : checkboxes) c.hot = false;
         for (auto& t : toggles) t.hot = false;
         for (auto& rb : radios) rb.hot = false;
+        for (auto& sl : sliders) sl.hot = false;
+        for (auto& rtg : ratings) rtg.hover = 0;
         needsDraw = true;
         return 0;
     case WM_LBUTTONDOWN:

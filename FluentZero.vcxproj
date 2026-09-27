@@ -82,6 +82,12 @@
     <ClCompile Include="src\UI\ToggleSwitch.cpp" />
     <ClInclude Include="src\UI\ProgressBar.h" />
     <ClCompile Include="src\UI\ProgressBar.cpp" />
+    <ClInclude Include="src\UI\ProgressRing.h" />
+    <ClCompile Include="src\UI\ProgressRing.cpp" />
+    <ClInclude Include="src\UI\Slider.h" />
+    <ClCompile Include="src\UI\Slider.cpp" />
+    <ClInclude Include="src\UI\RatingControl.h" />
+    <ClCompile Include="src\UI\RatingControl.cpp" />
     <!-- Core 层 -->
     <ClInclude Include="src\Core\App.h" />
     <ClCompile Include="src\Core\App.cpp" />
