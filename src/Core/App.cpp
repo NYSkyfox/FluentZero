@@ -42,8 +42,6 @@ HRESULT App::Create() {
     // 若此时 buttons 为空则 operator[] 越界 → 野引用写 → 空指针写崩溃(0xC0000005)
     // 按钮文字 = 按钮"类型名"（演示用），图标码位 0（纯文字，避免 CI 环境无 MDL2 图标字形）
     buttons.push_back({ L"Button",  0, false });
-    buttons.push_back({ L"Button",  0, false });
-    buttons.push_back({ L"Button",  0, false });
     buttons.push_back({ L"Primary", 0, true  });
 
     // 导航项（同样必须先于 CreateWindowExW 填充，防 WM_SIZE 早到越界）
@@ -110,7 +108,7 @@ HRESULT App::Create() {
 // ==================== 布局 ====================
 
 void App::Layout() {
-    if (buttons.size() < 4 || navItems.empty()) return;   // 防御：未就绪前不布局
+    if (buttons.size() < 2 || navItems.empty()) return;   // 防御：未就绪前不布局
     RECT rc; GetClientRect(hwnd, &rc);
     float W = rc.right - rc.left, H = rc.bottom - rc.top;
     float s = dpiScale;
@@ -144,12 +142,12 @@ void App::Layout() {
     {
         float ly = y0;
         gL1Y = ly;  ly += 16 * s + 10 * s;            // "Buttons"
-        for (int i = 0; i < 3; i++) {                 // 3 个标准按钮（竖排，全栏宽）
+        for (int i = 0; i < 1; i++) {                 // 1 个标准按钮（竖排，全栏宽）
             Button& b = buttons[i];
             b.x = colLX; b.y = ly; b.h = 34 * s; b.w = colW;
             ly += 34 * s + 10 * s;
         }
-        Button& pb = buttons[3];                       // Primary（强调色，全栏宽）
+        Button& pb = buttons[1];                       // Primary（强调色，全栏宽）
         pb.x = colLX; pb.y = ly; pb.h = 34 * s; pb.w = colW;
         ly += 34 * s + 18 * s;
         gL2Y = ly;  ly += 16 * s + 10 * s;            // "Selection"
