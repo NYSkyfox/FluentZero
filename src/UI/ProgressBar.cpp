@@ -13,9 +13,17 @@ void DrawProgressBar(Renderer& r, const ProgressBar& pb, const FluentTheme& th, 
     const float barH = 4 * s;
     float by = pb.y + (pb.h - barH) * 0.5f;
 
-    // 标签（上方）
+    // 标签（左）+ 百分比（右）。百分比用固定宽框左对齐，不用 Measure——
+    // CI 的 WARP 软渲染下 Measure 可能返回异常值（Button 文字消失的同款根因）
     r.DrawText(pb.label, pb.x, pb.y, pb.w, L"Segoe UI", 11 * s,
                DWRITE_FONT_WEIGHT_NORMAL, th.text2);
+    {
+        int pct = (int)(pb.value * 100.0f + 0.5f);
+        std::wstring pctStr = std::to_wstring(pct) + L"%";
+        const float pctBoxW = 36 * s;
+        r.DrawText(pctStr, pb.x + pb.w - pctBoxW, pb.y, pctBoxW, L"Segoe UI", 11 * s,
+                   DWRITE_FONT_WEIGHT_NORMAL, th.text1);
+    }
     // 轨道
     D2D1_RECT_F track{};
     track.left = pb.x; track.top = by; track.right = pb.x + pb.w; track.bottom = by + barH;

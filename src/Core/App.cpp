@@ -315,7 +315,9 @@ void App::DrawCard() {
              DWRITE_FONT_WEIGHT_NORMAL, th.text1);
     DrawText(detailClicks, tx, cardY + 70 * s, W, L"Segoe UI", 13 * s,
              DWRITE_FONT_WEIGHT_NORMAL, th.text1);
-    DrawText(L"Reveal hover 150ms ease-out | Segoe MDL2 Assets | Acrylic (BlurBehind)",
+    // 注：文案需在此两栏布局的可用宽度内（卡片右缘 - 图标右缘），
+    //     过长会被硬截断；保持精简，不做省略号逻辑（CI 软渲染下更稳）
+    DrawText(L"Reveal hover 150ms | Segoe MDL2 | Acrylic",
              tx, cardY + 94 * s, W, L"Segoe UI", 11 * s,
              DWRITE_FONT_WEIGHT_NORMAL, th.text2);
 }

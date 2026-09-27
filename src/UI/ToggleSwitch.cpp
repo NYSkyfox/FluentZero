@@ -37,9 +37,13 @@ void DrawToggleSwitch(Renderer& r, const ToggleSwitch& ts, const FluentTheme& th
     knob.point.x = knobX; knob.point.y = knobY;
     knob.radiusX = knobR; knob.radiusY = knobR;
     rt->FillEllipse(&knob, r.MakeBrush(FzCol(1, 1, 1, 1)).Get());
-    D2D1_COLOR_F knobEdge = Lerp(th.text1, FzCol(1, 1, 1, 1), tT);
-    if (knobEdge.a > 0.01f)
-        rt->DrawEllipse(&knob, r.MakeBrush(knobEdge).Get(), 1.0f);
+    // 圆钮描边：关态深色边、开态淡灰边（30%），随 tT 平滑过渡。
+    // 目的：白色滑块在浅色底（开态浅灰 / 关态白）上始终保留一圈轮廓，
+    // 消除"纯白扁平圆块无边界"的观感（对齐 Win10 滑块的悬浮感）
+    D2D1_COLOR_F offEdge = th.text1;
+    D2D1_COLOR_F onEdge = FzCol(th.text1.r, th.text1.g, th.text1.b, 0.30f);
+    D2D1_COLOR_F knobEdge = Lerp(offEdge, onEdge, tT);
+    rt->DrawEllipse(&knob, r.MakeBrush(knobEdge).Get(), 1.0f);
 
     r.DrawText(ts.label, ts.x + trackW + 8 * s, knobY - 8 * s, ts.w,
                L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL, th.text1);
