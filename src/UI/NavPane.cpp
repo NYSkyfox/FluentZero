@@ -28,23 +28,24 @@ void DrawNavPane(Renderer& r, const NavGeometry& g, const std::vector<NavItem>& 
     l1.x = x + w - 0.5f; l1.y = y + h;
     rt->DrawLine(l0, l1, r.MakeBrush(th.navBorder).Get(), 1.0f);
 
-    // 2b) 顶部标题（折叠时淡出）
+    // 2b) 顶部标题（在折叠按钮右侧；折叠时淡出）
     if (eT > 0.02f) {
         D2D1_COLOR_F titleC = th.text1;
         titleC.a *= eT;
-        r.DrawText(L"FluentZero", x + 16 * s, 13 * s, FzMx(20 * s, w - 56 * s),
+        r.DrawText(L"FluentZero", x + 7 * s + 32 * s + 12 * s, 13 * s, FzMx(20 * s, w - 80 * s),
                    L"Segoe UI", 14 * s, (DWRITE_FONT_WEIGHT)600, titleC);
     }
-    // 2c) 折叠/展开按钮（右上角 32x32 圆角，hover 灰底；展开=‹ 折叠=›）
+    // 2c) 折叠/展开按钮（左上角 32x32 圆角，hover 灰底；图标=三条杠 GlobalNavButton，
+    //     与 Win10/11 设置一致，折叠/展开两态图标不变）
     {
         const float bs = 32 * s;
-        float bx = x + w - bs - 4 * s, by = 7 * s;
+        float bx = x + 7 * s, by = 7 * s;
         D2D1_ROUNDED_RECT bb = FzRR(bx, by, bx + bs, by + bs, 3 * s);
         if (st.btnHot) {
             D2D1_COLOR_F hv = th.navHover;
             rt->FillRoundedRectangle(&bb, r.MakeBrush(hv).Get());
         }
-        wchar_t gl[2] = { (wchar_t)(st.expanded ? 0xE76B : 0xE76C), 0 };   // ChevronLeft/Right
+        wchar_t gl[2] = { 0xE700, 0 };   // GlobalNavButton（☰ 三条杠）
         r.DrawText(gl, bx, by + bs * 0.5f - 7 * s, bs, L"Segoe MDL2 Assets",
                    12 * s, DWRITE_FONT_WEIGHT_NORMAL, th.text1);
     }
@@ -122,7 +123,7 @@ bool UpdateNavItemAnimation(NavItem& it, float dt) {
 
 bool HitNavPaneButton(const NavGeometry& g, float x, float y, float s) {
     const float bs = 32 * s;
-    float bx = g.x + g.w - bs - 4 * s, by = 7 * s;
+    float bx = g.x + 7 * s, by = 7 * s;   // 左上角（与绘制位置一致）
     return x >= bx && x <= bx + bs && y >= by && y <= by + bs;
 }
 
