@@ -33,7 +33,7 @@ void DrawToggleSwitch(Renderer& r, const ToggleSwitch& ts, const FluentTheme& th
 
     // 圆钮
     D2D1_ELLIPSE knob{};
-    knob.center.x = knobX; knob.center.y = knobY;
+    knob.point.x = knobX; knob.point.y = knobY;
     knob.radiusX = knobR; knob.radiusY = knobR;
     rt->FillEllipse(&knob, r.MakeBrush(FzCol(1, 1, 1, 1)).Get());
     rt->DrawEllipse(&knob, r.MakeBrush(th.text1).Get(), 1.0f);

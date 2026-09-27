@@ -14,7 +14,7 @@ void DrawRadioButton(Renderer& r, const RadioButton& rb, const FluentTheme& th, 
     float d = 18 * s, rad = d * 0.5f;
     float cx = rb.x + rad, cy = rb.y + (rb.h - d) * 0.5f + rad;
     D2D1_ELLIPSE ell{};
-    ell.center.x = cx; ell.center.y = cy; ell.radiusX = rad; ell.radiusY = rad;
+    ell.point.x = cx; ell.point.y = cy; ell.radiusX = rad; ell.radiusY = rad;
 
     // 外圈（hover 时向 accent 过渡）
     D2D1_COLOR_F ring = Lerp(th.btnBorder, th.accent, 0.6f * hT);
@@ -30,7 +30,7 @@ void DrawRadioButton(Renderer& r, const RadioButton& rb, const FluentTheme& th, 
     // 选中：中心 accent 圆点
     if (rb.selected) {
         D2D1_ELLIPSE dot{};
-        dot.center.x = cx; dot.center.y = cy; dot.radiusX = 5 * s; dot.radiusY = 5 * s;
+        dot.point.x = cx; dot.point.y = cy; dot.radiusX = 5 * s; dot.radiusY = 5 * s;
         rt->FillEllipse(&dot, r.MakeBrush(FzCol(th.accent.r, th.accent.g, th.accent.b, 1)).Get());
     }
 
