@@ -8,11 +8,12 @@
 namespace fz {
 
 void DrawNavPane(Renderer& r, const NavGeometry& g, const std::vector<NavItem>& items,
-                 const FluentTheme& th, float s) {
+                 const NavState& st, const FluentTheme& th, float s) {
     ID2D1HwndRenderTarget* rt = r.rt.Get();
     if (!rt) return;
 
     float x = g.x, y = g.y, w = g.w, h = g.h;
+    float eT = EaseOut(st.t);   // 展开度（文字/标题透明度 + 图标位置用）
 
     // 1) 侧边栏底色：浅色半透明（不是黑色遮罩）。
 //    注：CI 的 WARP 软渲染下 DWM BlurBehind 不真正模糊，纯透明会直接透出桌面图标；
@@ -26,6 +27,27 @@ void DrawNavPane(Renderer& r, const NavGeometry& g, const std::vector<NavItem>& 
     l0.x = x + w - 0.5f; l0.y = y;
     l1.x = x + w - 0.5f; l1.y = y + h;
     rt->DrawLine(l0, l1, r.MakeBrush(th.navBorder).Get(), 1.0f);
+
+    // 2b) 顶部标题（折叠时淡出）
+    if (eT > 0.02f) {
+        D2D1_COLOR_F titleC = th.text1;
+        titleC.a *= eT;
+        r.DrawText(L"FluentZero", x + 16 * s, 13 * s, FzMx(20 * s, w - 56 * s),
+                   L"Segoe UI", 14 * s, (DWRITE_FONT_WEIGHT)600, titleC);
+    }
+    // 2c) 折叠/展开按钮（右上角 32x32 圆角，hover 灰底；展开=‹ 折叠=›）
+    {
+        const float bs = 32 * s;
+        float bx = x + w - bs - 4 * s, by = 7 * s;
+        D2D1_ROUNDED_RECT bb = FzRR(bx, by, bx + bs, by + bs, 3 * s);
+        if (st.btnHot) {
+            D2D1_COLOR_F hv = th.navHover;
+            rt->FillRoundedRectangle(&bb, r.MakeBrush(hv).Get());
+        }
+        wchar_t gl[2] = { (wchar_t)(st.expanded ? 0xE76B : 0xE76C), 0 };   // ChevronLeft/Right
+        r.DrawText(gl, bx, by + bs * 0.5f - 7 * s, bs, L"Segoe MDL2 Assets",
+                   12 * s, DWRITE_FONT_WEIGHT_NORMAL, th.text1);
+    }
 
     // 3) 每个导航项
     const float padL = 8 * s;     // 条左右内缩
@@ -73,9 +95,14 @@ void DrawNavPane(Renderer& r, const NavGeometry& g, const std::vector<NavItem>& 
             r.DrawText(gl, iconX, cy - 9 * s, 40 * s, L"Segoe MDL2 Assets", 16 * s,
                        DWRITE_FONT_WEIGHT_NORMAL, txt);
         }
-        // 导航文字 + 当前状态（Selected / Hover / Idle）
-        std::wstring nstate = it.selected ? L"Selected" : (it.hot ? L"Hover" : L"Idle");
-        r.DrawText(it.text + L" : " + nstate, textX, cy - 8 * s, w, L"Segoe UI", 13 * s, wt, txt);
+        // 导航文字 + 当前状态（Selected / Hover / Idle）；折叠时随展开度淡出
+        if (eT > 0.02f) {
+            std::wstring nstate = it.selected ? L"Selected" : (it.hot ? L"Hover" : L"Idle");
+            D2D1_COLOR_F ttxt = txt;
+            ttxt.a *= eT;
+            r.DrawText(it.text + L" : " + nstate, textX, cy - 8 * s,
+                       FzMx(20 * s, w - 48 * s + 30 * s), L"Segoe UI", 13 * s, wt, ttxt);
+        }
     }
 }
 
@@ -91,6 +118,20 @@ int HitNavItem(const NavGeometry& g, const std::vector<NavItem>& items, float x,
 bool UpdateNavItemAnimation(NavItem& it, float dt) {
     it.hoverT = Clamp01(it.hoverT + (it.hot ? dt / 0.15f : -dt / 0.15f));
     return it.hoverT > 0 && it.hoverT < 1;
+}
+
+bool HitNavPaneButton(const NavGeometry& g, float x, float y, float s) {
+    const float bs = 32 * s;
+    float bx = g.x + g.w - bs - 4 * s, by = 7 * s;
+    return x >= bx && x <= bx + bs && y >= by && y <= by + bs;
+}
+
+bool UpdateNavState(NavState& st, float dt) {
+    float target = st.expanded ? 1.0f : 0.0f;
+    float step = dt / 0.20f;   // 200ms 线性过渡（与 Reveal 的 EaseOut 视觉接近）
+    if (st.t < target) st.t = Fzmn(target, st.t + step);
+    else st.t = FzMx(target, st.t - step);
+    return st.t != target;
 }
 
 } // namespace fz

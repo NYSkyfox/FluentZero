@@ -23,6 +23,7 @@ public:
     std::vector<Button> buttons;
     std::vector<NavItem> navItems;
     NavGeometry navGeo;
+    NavState navState;      // 折叠/展开状态（顶部 chevron 按钮）
     int navSelected = 0;
     std::vector<CheckBox> checkboxes;
     std::vector<RadioButton> radios;

@@ -115,7 +115,8 @@ void App::Layout() {
 
     // ---- 左侧导航栏 ----
     navGeo.x = 0; navGeo.y = 0;
-    navGeo.w = 180 * s;
+    // 宽度随折叠动画插值：展开 180px ↔ 折叠 48px（仅图标）
+    navGeo.w = (48 + 132 * EaseOut(navState.t)) * s;
     navGeo.h = H;
     float navTop = 48 * s;      // 顶部留白（给窗体标题区）
     float navItemH = 36 * s;
@@ -254,8 +255,8 @@ void App::onDraw() {
     cb.right = W;       cb.bottom = H;
     rt->FillRectangle(&cb, MakeBrush(th.contentBg).Get());
 
-    // 3) 左侧导航栏（磨砂面板 + Reveal 交互，半透明透出后方 = Acrylic）
-    DrawNavPane(*this, navGeo, navItems, th, s);
+    // 3) 左侧导航栏（磨砂面板 + 顶部标题/折叠按钮 + Reveal 交互，半透明透出后方 = Acrylic）
+    DrawNavPane(*this, navGeo, navItems, navState, th, s);
 
     // 4) 右侧内容区：标题 / 副标题
     DrawText(pageTitle, contentX, titleY, W - contentX, L"Segoe UI", 26 * s,
@@ -338,7 +339,9 @@ void App::OnMove(float x, float y) {
     int bh = HitButton(buttons, x, y);
     for (int i = 0; i < (int)buttons.size(); i++)
         buttons[i].hot = (i == bh);
-    int nh = HitNavItem(navGeo, navItems, x, y);
+    // 折叠/展开按钮 hover（优先于导航项命中）
+    navState.btnHot = HitNavPaneButton(navGeo, x, y, dpiScale);
+    int nh = navState.btnHot ? -1 : HitNavItem(navGeo, navItems, x, y);
     for (int i = 0; i < (int)navItems.size(); i++)
         navItems[i].hot = (i == nh);
     int ch = HitCheckBox(checkboxes, x, y);
@@ -366,6 +369,12 @@ void App::OnMove(float x, float y) {
 }
 
 void App::OnLButtonDown(float x, float y) {
+    // 折叠/展开按钮：切换目标态（动画由 UpdateNavState 驱动，期间每帧重布局）
+    if (HitNavPaneButton(navGeo, x, y, dpiScale)) {
+        navState.expanded = !navState.expanded;
+        needsDraw = true;
+        return;
+    }
     int hit = HitButton(buttons, x, y);
     if (hit >= 0) {
         buttons[hit].pressed = true;
@@ -444,6 +453,11 @@ void App::Update(float dt) {
     for (auto& it : navItems)
         if (UpdateNavItemAnimation(it, dt))
             animating = true;
+    // 导航栏折叠/展开：动画期间宽度逐帧变化 → 每帧重布局（内容区随之平移）
+    if (UpdateNavState(navState, dt)) {
+        animating = true;
+        Layout();
+    }
     for (auto& c : checkboxes)
         if (UpdateCheckBox(c, dt))
             animating = true;
@@ -554,6 +568,7 @@ LRESULT App::WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
     case WM_MOUSELEAVE:
         for (auto& b : buttons) b.hot = false;
         for (auto& it : navItems) it.hot = false;
+        navState.btnHot = false;
         for (auto& c : checkboxes) c.hot = false;
         for (auto& t : toggles) t.hot = false;
         for (auto& rb : radios) rb.hot = false;
