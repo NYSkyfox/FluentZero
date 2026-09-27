@@ -31,12 +31,14 @@ void DrawToggleSwitch(Renderer& r, const ToggleSwitch& ts, const FluentTheme& th
         rt->DrawRoundedRectangle(&track, r.MakeBrush(Lerp(th.btnBorder, th.accent, 0.5f * hT)).Get(), 1.0f);
     }
 
-    // 圆钮
+    // 圆钮（ON 态纯白无黑边：描边随 tT 从主题色过渡到白色，还原 Win10 原版观感）
     D2D1_ELLIPSE knob{};
     knob.point.x = knobX; knob.point.y = knobY;
     knob.radiusX = knobR; knob.radiusY = knobR;
     rt->FillEllipse(&knob, r.MakeBrush(FzCol(1, 1, 1, 1)).Get());
-    rt->DrawEllipse(&knob, r.MakeBrush(th.text1).Get(), 1.0f);
+    D2D1_COLOR_F knobEdge = Lerp(th.text1, FzCol(1, 1, 1, 1), tT);
+    if (knobEdge.a > 0.01f)
+        rt->DrawEllipse(&knob, r.MakeBrush(knobEdge).Get(), 1.0f);
 
     r.DrawText(ts.label, ts.x + trackW + 8 * s, knobY - 8 * s, ts.w,
                L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL, th.text1);
