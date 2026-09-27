@@ -20,15 +20,27 @@ Rendering / UI / Core），产物是**单个 exe**（静态链接 CRT，约几�
 
 ## 演示的 Win10 Fluent 要素
 
-1. **Acrylic 背景** — `BlurBehind` 模糊 + 半透明主题底色
-   （浅色 `#F4F4F4`@55% / 深色 `#202020`@60%）
+两栏"设置页"演示布局（左：Buttons / Selection，右：Progress / Sliders /
+Rating / Info），覆盖 8 类核心控件 + 可折叠导航：
+
+1. **Acrylic 背景** — `BlurBehind` 模糊，仅作用于左侧导航栏
+   （近实底 `#F3F3F3`@96% / `#202020`@96%，CI 软渲染下挡住穿透）；
+   内容区为实底 `#F3F3F3` / `#202020`
 2. **系统强调色** — 读注册表
    `HKCU\Software\Microsoft\Windows\CurrentVersion\ThemeManager\AccentColor`
    （读不到时回退 Win10 默认蓝 `#0078D7`）
 3. **深浅主题自动跟随** — `AppsUseLightTheme`
 4. **Button（Reveal）** — hover 提亮 4% / pressed 压暗 8% / Reveal 描边
    渐入，150 ms ease-out cubic，对齐 WinUI Button 交互
-5. **Segoe MDL2 Assets 图标** — Home / Settings / Refresh / Add
+5. **ToggleSwitch（WinUI 3 / Win11 配色）** — OFF 白轨道 + 灰滑块，
+   ON accent 轨道 + 白滑块；12→14px 开态放大；标签实时 On/Off
+6. **Segoe MDL2 Assets 图标** — Home / Settings / Accounts / Network
+   + 折叠按钮 GlobalNavButton（三条杠）
+7. **可折叠导航栏** — 左上角三条杠按钮，180↔48px 200 ms 动画，
+   折叠后仅图标（文字淡出），内容区随之平移
+8. **实时状态文本** — 所有组件标签追加当前状态
+   （Button: Normal/Hover/Pressed、Checkbox: Checked/Unchecked、
+   Slider: N%、Rating: N/5、Nav: Selected/Hover/Idle…）
 
 ## 构建
 
@@ -40,9 +52,10 @@ Rendering / UI / Core），产物是**单个 exe**（静态链接 CRT，约几�
 仓库已配置 **GitHub Actions**（手动触发）：
 Actions 页面 → `build` → **Run workflow**，产物在 Artifacts 里下载。
 
-> **构建验证（2026-09-26，windows-2025 VS2026 Runner，SDK 10.0.26100）**：
-> Release|x64 构建通过，产物 **FluentZero.exe = 162.5 KB**（单文件，零附带 DLL）。
+> **构建验证（2026-09-27，windows-2025 VS2026 Runner，SDK 10.0.26100）**：
+> Release|x64 构建通过，产物 **FluentZero.exe = 209 KB**（单文件，零附带 DLL）。
 > 静态链接 CRT（`/MT`），Win10 1607+ / Win11 直接双击运行。
+> CI 同时产出全屏截图存档（命名 `FluentZero_<sha7>_<时间戳>.png`）。
 
 ## 代码结构（分层架构）
 
@@ -122,17 +135,17 @@ HWND（WS_EX_NOREDIRECTIONBITMAP，保留原生标题栏）
 | 控件 | 状态 | 备注 |
 |---|:---:|---|
 | Button | ✅ | 含 primary 强调色变体 + Reveal 悬停 |
-| CheckBox | ✅ | 18px 圆角方框，accent 填充 + 白色勾，hover/check 动画 |
+| CheckBox | ✅ | 20px 圆角方框，accent 填充 + 白色勾，hover/check 动画 |
 | RadioButton | ✅ | 圆外圈 + 中心 accent 圆点，组内互斥（Core 管理）|
-| ToggleSwitch | ✅ | 40×20 轨道 + 滑动圆钮，开/关 accent 过渡 |
-| ProgressBar | ✅ | 标签 + 轨道 + accent 填充，value 由 App 驱动 |
+| ToggleSwitch | ✅ | 40×20 轨道 + 12→14px 圆钮（WinUI 3 配色：OFF 白轨道灰钮 / ON accent 白钮）|
+| ProgressBar | ✅ | 标签 + 右侧百分比 + 4px 轨道 + accent 填充，value 由 App 驱动 |
 | ComboBox | ⏳ | 含弹出层，较复杂 |
 | Slider | ✅ | 标签 + 轨道 + accent 已选段 + 可拖拽 thumb（hover 放大）|
 | RatingControl | ✅ | 5 颗星（Segoe MDL2 StarFill/Outline）+ hover 预览 + 点选打分 |
 | TextBox / PasswordBox | ❌ | 需 IME，手搓最大坑，有意推迟 |
 | NumberBox / AutoSuggestBox | ❌ | 低优先级 |
 | DatePicker / TimePicker | ❌ | 依赖弹出面板 |
-| ProgressRing | ✅ | 底环 + accent 弧（折线逼近，规避 D2D1_ARC）+ 端点圆帽，value 由 App 驱动 |
+| ProgressRing | ✅ | 底环 + accent 弧（折线逼近，规避 D2D1_ARC）+ 端点圆帽 + 百分比，value 由 App 驱动 |
 
 **数据 / 容器控件**
 
@@ -148,8 +161,8 @@ HWND（WS_EX_NOREDIRECTIONBITMAP，保留原生标题栏）
 
 | 区块 | 状态 | 备注 |
 |---|:---:|---|
-| Card（信息卡） | ✅ | 当前为布局区块，未抽成独立控件 |
-| NavPane（侧边导航） | ✅ | 磨砂面板 + hover 渐显 + Reveal 光带 + 强调色选中指示条 |
+| Card（信息卡） | ✅ | 双列固定 X 网格（标签/值对齐）+ 内容块垂直居中；布局区块，未抽成独立控件 |
+| NavPane（侧边导航） | ✅ | 磨砂面板 + 顶部标题 + 三条杠折叠按钮（180↔48px 200ms）+ hover 渐显 + Reveal 光带 + 选中指示条 |
 | 标题 / 副标题（TextBlock） | ✅ | |
 | Border / Grid / StackPanel | — | 由 Core 布局逻辑直接承担，无独立控件抽象 |
 
