@@ -119,7 +119,7 @@ void App::Layout() {
     navGeo.w = (48 + 132 * EaseOut(navState.t)) * s;
     navGeo.h = H;
     float navTop = 48 * s;      // 顶部留白（给窗体标题区）
-    float navItemH = 36 * s;
+    float navItemH = 40 * s;   // 2018 NavigationView 规范行高
     for (int i = 0; i < (int)navItems.size(); i++) {
         navItems[i].y = navTop + i * navItemH;
         navItems[i].h = navItemH;
