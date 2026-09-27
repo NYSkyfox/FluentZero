@@ -3,7 +3,9 @@
 param(
     [Parameter(Mandatory=$true)]
     [ValidateSet('raw_desktop','settings_about','settings_personalization','fluentzero','fluentzero_over_settings')]
-    [string]$Scenario
+    [string]$Scenario,
+    # 目标分辨率，逗号分隔 WxH，可多个按顺序尝试（如 "1920x1080,1600x900"）
+    [string]$Resolution = "1920x1080,1600x900,1280x1024"
 )
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Drawing
@@ -72,10 +74,78 @@ public class Cap {
         }, IntPtr.Zero);
         Console.WriteLine("    MinimizeAll: " + minimized + " 个顶层窗口已最小化");
     }
+    // ---- 屏幕分辨率 ----
+    [StructLayout(LayoutKind.Sequential)]
+    public struct DEVMODE {
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst=32)] public string dmDeviceName;
+        public short dmSpecVersion;
+        public short dmDriverVersion;
+        public short dmSize;
+        public short dmDriverExtra;
+        public int dmFields;
+        public int dmPositionX;
+        public int dmPositionY;
+        public int dmDisplayOrientation;
+        public int dmDisplayFixedOutput;
+        public int dmColor;
+        public int dmDuplex;
+        public int dmYResolution;
+        public int dmTTOption;
+        public int dmCollate;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst=32)] public string dmFormName;
+        public int dmLogPixels;
+        public int dmBitsPerPel;
+        public int dmPelsWidth;
+        public int dmPelsHeight;
+        public int dmDisplayFlags;
+        public int dmDisplayFrequency;
+        public int dmICMMethod;
+        public int dmICMIntent;
+        public int dmMediaType;
+        public int dmDitherType;
+        public int dmReserved1;
+        public int dmReserved2;
+        public int dmPanningWidth;
+        public int dmPanningHeight;
+    }
+    [DllImport("user32.dll", CharSet=CharSet.Auto)]
+    public static extern int EnumDisplaySettings(string name, int modeNum, ref DEVMODE dm);
+    [DllImport("user32.dll", CharSet=CharSet.Auto)]
+    public static extern int ChangeDisplaySettings(ref DEVMODE dm, int flags);
+    // 改分辨率：返回 true 表示成功（DISP_CHANGE_SUCCESSFUL=0 / RESTART=1）
+    public static bool SetResolution(int w, int h) {
+        var dm = new DEVMODE();
+        dm.dmSize = (short)Marshal.SizeOf(typeof(DEVMODE));
+        if (EnumDisplaySettings(null, -1, ref dm) != 0) return false;
+        dm.dmPelsWidth = w;
+        dm.dmPelsHeight = h;
+        dm.dmFields = 0x800000 | 0x100000; // DM_PELSWIDTH | DM_PELSHEIGHT
+        int r = ChangeDisplaySettings(ref dm, 0);
+        return r == 0 || r == 1;
+    }
 }
 "@
 
 # ---------- 工具函数 ----------
+function Set-DesktopResolution {
+    param([string]$List)
+    if ([string]::IsNullOrWhiteSpace($List)) { Write-Host "  跳过分辨率设置（未指定）"; return }
+    foreach ($item in ($List -split ',')) {
+        $t = $item.Trim()
+        if ($t -notmatch '^(\d+)x(\d+)$') { continue }
+        $w = [int]$Matches[1]; $h = [int]$Matches[2]
+        if ($w -lt 800 -or $h -lt 600) { continue }
+        if ([Cap]::SetResolution($w, $h)) {
+            Start-Sleep -Milliseconds 1500   # 等 DWM 按新分辨率重排桌面
+            Write-Host "  分辨率已设为 ${w}x${h}"
+            return
+        } else {
+            Write-Host "  ${w}x${h} 不被支持，尝试下一个"
+        }
+    }
+    Write-Host "  警告: 所有目标分辨率均不支持，保持当前分辨率"
+}
+
 function Show-Desktop {
     # 强制最小化所有顶层可见窗口，露出原始桌面（比 Win+D 键可靠）
     [Cap]::MinimizeAll()
@@ -136,6 +206,10 @@ function Take-FullScreen {
     $kb = [math]::Round((Get-Item $Path).Length / 1KB, 1)
     Write-Host "  截图已保存: $Path (${kb} KB)"
 }
+
+# ---------- 分辨率（在所有窗口操作前，确保新分辨率先生效） ----------
+Set-DesktopResolution $Resolution
+Start-Sleep -Milliseconds 500
 
 # ---------- 场景逻辑 ----------
 switch ($Scenario) {
