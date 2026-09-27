@@ -13,19 +13,30 @@ void DrawButton(Renderer& r, const Button& b, const FluentTheme& th, float s) {
 
     float h = EaseOut(b.hoverT), p = EaseOut(b.pressT), rv = EaseOut(b.revealT);
 
-    D2D1_COLOR_F fill = b.primary ? th.accent : th.btnFill;
-    fill.a = 1;
-    fill = Brighten(fill, 0.04f * h);   // hover 提亮 4%
-    fill = Brighten(fill, -0.08f * p);  // pressed 压暗 8%
-    D2D1_COLOR_F txt = b.primary ? th.textOnAccent : th.btnText;
+    D2D1_COLOR_F fill, txt;
+    if (b.primary) {                                   // Primary：accent 实底 + 反白文字
+        fill = th.accent; fill.a = 1;
+        fill = Brighten(fill, 0.04f * h);              // hover 提亮 4%
+        fill = Brighten(fill, -0.08f * p);             // pressed 压暗 8%
+        txt = th.textOnAccent;
+    } else if (b.subtle) {                             // Subtle：无填充无边框，仅 hover 淡底
+        float a = (th.light ? 0.05f : 0.10f) * h;      // 仅 hover 时淡灰底
+        fill = th.light ? FzCol(0, 0, 0, a) : FzCol(1, 1, 1, a);
+        txt = th.btnText;
+    } else {                                           // 标准：浅填充 + 1px 描边
+        fill = th.btnFill; fill.a = 1;
+        fill = Brighten(fill, 0.04f * h);
+        fill = Brighten(fill, -0.08f * p);
+        txt = th.btnText;
+    }
 
     float r3 = 3 * s;
-    // 填充
+    // 填充（Subtle 非 hover 时 alpha≈0，自然不可见）
     rt->FillRoundedRectangle(
         FzRR(b.x, b.y, b.x + b.w, b.y + b.h, r3),
         r.MakeBrush(fill).Get());
-    // 边框（Win10 普通按钮有 1px 描边）
-    if (!b.primary) {
+    // 边框（Win10 普通按钮有 1px 描边；Subtle 无边框）
+    if (!b.primary && !b.subtle) {
         rt->DrawRoundedRectangle(
             FzRR(b.x + 0.5f, b.y + 0.5f, b.x + b.w - 0.5f, b.y + b.h - 0.5f, r3),
             r.MakeBrush(th.btnBorder).Get(), 1);

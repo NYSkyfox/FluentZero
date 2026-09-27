@@ -40,9 +40,10 @@ HRESULT App::Create() {
     // 按钮必须先于 CreateWindowExW 填充：
     // CreateWindowExW / ShowWindow 会同步发 WM_SIZE → Layout() 访问 buttons[i]，
     // 若此时 buttons 为空则 operator[] 越界 → 野引用写 → 空指针写崩溃(0xC0000005)
-    // 按钮文字 = 按钮"类型名"（演示用），图标码位 0（纯文字，避免 CI 环境无 MDL2 图标字形）
-    buttons.push_back({ L"Button",  0, false });
-    buttons.push_back({ L"Primary", 0, true  });
+    // 按钮三种样式各展示一次：标准 / Primary / Subtle（演示用，图标码位 0 纯文字）
+    buttons.push_back({ L"Button",  0, false, false });
+    buttons.push_back({ L"Primary", 0, true,  false });
+    buttons.push_back({ L"Subtle",  0, false, true  });
 
     // 导航项（同样必须先于 CreateWindowExW 填充，防 WM_SIZE 早到越界）
     navItems.push_back({ L"Home",     0xE80F, 0, 0, 0, false, true  });
@@ -51,34 +52,30 @@ HRESULT App::Create() {
     navItems.push_back({ L"Network",  0xE839, 0, 0, 0, false, false });
     pageTitle = L"Home";
 
-    // CheckBox（第 2 个默认勾选，演示勾选态）
-    checkboxes.push_back({ L"Animations",     false, 0, 0, 0, 0, 0, 0, 0, false, false });
-    checkboxes.push_back({ L"Sounds",         true,  0, 0, 0, 0, 0, 0, 0, false, false });
-    checkboxes.push_back({ L"Dark mode",      false, 0, 0, 0, 0, 0, 0, 0, false, false });
+    // CheckBox 两态各一次：未勾选 / 已勾选
+    checkboxes.push_back({ L"Animations", false, 0, 0, 0, 0, 0, 0, 0, false, false });
+    checkboxes.push_back({ L"Sounds",     true,  0, 0, 0, 0, 0, 0, 0, false, false });
 
-    // RadioButton（组内互斥，默认选 0）
-    radios.push_back({ L"Automatic", true,  0, 0, 0, 0, 0, false, false });
-    radios.push_back({ L"Light",     false, 0, 0, 0, 0, 0, false, false });
-    radios.push_back({ L"Dark",      false, 0, 0, 0, 0, 0, false, false });
+    // RadioButton 两态各一次：选中 / 未选中（组内互斥，默认选 0）
+    radios.push_back({ L"Light", true,  0, 0, 0, 0, 0, false, false });
+    radios.push_back({ L"Dark",  false, 0, 0, 0, 0, 0, false, false });
 
-    // ToggleSwitch（第 1 个默认开）
-    toggles.push_back({ L"Notifications",  true,  0, 0, 0, 0, 0, 0, false, false });
-    toggles.push_back({ L"Do not disturb", false, 0, 0, 0, 0, 0, 0, false, false });
+    // ToggleSwitch 三态各一次：On / Off / Disabled
+    toggles.push_back({ L"Notifications",   true,  0, 0, 0, 0, 0, 0, false, false });
+    toggles.push_back({ L"Do not disturb",  false, 0, 0, 0, 0, 0, 0, false, false });
+    toggles.push_back({ L"Airplane mode",   false, 0, 0, 0, 0, 0, 0, false, false, true });
 
-    // ProgressBar（演示自动推进）
+    // ProgressBar（单一样式，演示自动推进）
     progressBars.push_back({ L"Syncing...", 0.6f, 0, 0, 0, 0, true });
 
-    // ProgressRing（确定态，演示自动推进）
+    // ProgressRing（单一样式，演示自动推进）
     progressRings.push_back({ L"Loading...", 0.4f, 0, 0, 0, 0, true });
-    progressRings.push_back({ L"Uploading", 0.8f, 0, 0, 0, 0, true });
 
-    // Slider（可拖拽）
+    // Slider（单一样式，可拖拽）
     sliders.push_back({ L"Brightness", 0.70f, 0, 0, 0, 0, 0, false, false });
-    sliders.push_back({ L"Volume",     0.45f, 0, 0, 0, 0, 0, false, false });
 
-    // RatingControl（星级评分）
+    // RatingControl（单一样式，星级评分）
     ratings.push_back({ L"How do you rate this?", 4, 0, 0, 0, 0, 0 });
-    ratings.push_back({ L"Recommend it?",         3, 0, 0, 0, 0, 0 });
 
     hwnd = CreateWindowExW(0, wc.lpszClassName, L"FluentZero",
         WS_OVERLAPPEDWINDOW & ~WS_THICKFRAME,
@@ -108,7 +105,7 @@ HRESULT App::Create() {
 // ==================== 布局 ====================
 
 void App::Layout() {
-    if (buttons.size() < 2 || navItems.empty()) return;   // 防御：未就绪前不布局
+    if (buttons.size() < 3 || navItems.empty()) return;   // 防御：未就绪前不布局（3 种按钮样式）
     RECT rc; GetClientRect(hwnd, &rc);
     float W = rc.right - rc.left, H = rc.bottom - rc.top;
     float s = dpiScale;
@@ -143,14 +140,11 @@ void App::Layout() {
     {
         float ly = y0;
         gL1Y = ly;  ly += 16 * s + 10 * s;            // "Buttons"
-        for (int i = 0; i < 1; i++) {                 // 1 个标准按钮（竖排，全栏宽）
+        for (int i = 0; i < (int)buttons.size(); i++) { // 3 种样式各一次（竖排，全栏宽）
             Button& b = buttons[i];
             b.x = colLX; b.y = ly; b.h = 34 * s; b.w = colW;
-            ly += 34 * s + 10 * s;
+            ly += 34 * s + (i < (int)buttons.size() - 1 ? 10 * s : 18 * s);
         }
-        Button& pb = buttons[1];                       // Primary（强调色，全栏宽）
-        pb.x = colLX; pb.y = ly; pb.h = 34 * s; pb.w = colW;
-        ly += 34 * s + 18 * s;
         gL2Y = ly;  ly += 16 * s + 10 * s;            // "Selection"
         for (int i = 0; i < (int)checkboxes.size(); i++) {   // CheckBox ×3（竖排）
             CheckBox& c = checkboxes[i];
@@ -182,13 +176,10 @@ void App::Layout() {
         ProgressBar& p = progressBars[0];
         p.x = colRX; p.y = ry; p.h = 26 * s; p.w = colW;   // 加高：label 一行 + 下方轨道一行
         ry += 26 * s + 12 * s;
-        {                                              // ProgressRing ×2（并排）
-            float halfW = (colW - 12 * s) * 0.5f;
-            for (int i = 0; i < (int)progressRings.size(); i++) {
-                ProgressRing& rg = progressRings[i];
-                rg.x = colRX + i * (halfW + 12 * s);
-                rg.y = ry; rg.h = 22 * s; rg.w = halfW;
-            }
+        for (int i = 0; i < (int)progressRings.size(); i++) {   // ProgressRing（全宽）
+            ProgressRing& rg = progressRings[i];
+            rg.x = colRX;
+            rg.y = ry; rg.h = 22 * s; rg.w = colW;
         }
         ry += 22 * s + 16 * s;
         gR2Y = ry;  ry += 16 * s + 10 * s;            // "Sliders"

@@ -13,6 +13,7 @@ struct ToggleSwitch {
     float x = 0, y = 0, w = 0, h = 0;
     float hoverT = 0, toggleT = 0;   // toggleT：开/关动画进度
     bool hot = false, pressed = false;
+    bool disabled = false;        // 禁用态（灰化、不可交互）
 };
 
 void DrawToggleSwitch(Renderer& r, const ToggleSwitch& ts, const FluentTheme& th, float dpiScale);
