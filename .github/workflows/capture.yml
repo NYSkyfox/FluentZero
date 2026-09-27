@@ -1,0 +1,59 @@
+# 桌面截图工作流：摆好桌面场景 → 全屏截图 → 回传
+# 与 build 工作流独立，不触发构建（除非场景需要 FluentZero 本体）
+name: capture
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: "截图场景"
+        required: true
+        type: choice
+        default: raw_desktop
+        options:
+          - raw_desktop
+          - settings_about
+          - settings_personalization
+          - fluentzero
+          - fluentzero_over_settings
+
+jobs:
+  capture:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 仅当场景需要 FluentZero 本体时才构建
+      - name: Set up MSBuild
+        if: ${{ inputs.scenario == 'fluentzero' || inputs.scenario == 'fluentzero_over_settings' }}
+        uses: microsoft/setup-msbuild@v2
+      - name: Build (Release|x64)
+        if: ${{ inputs.scenario == 'fluentzero' || inputs.scenario == 'fluentzero_over_settings' }}
+        working-directory: .
+        run: msbuild FluentZero.sln /p:Configuration=Release /p:Platform=x64 /v:m /nologo
+
+      # 摆好桌面并全屏截图
+      - name: Capture (full desktop)
+        shell: pwsh
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File capture.ps1 -Scenario ${{ inputs.scenario }}
+
+      # 按版本 + 场景命名
+      - name: Version capture
+        shell: pwsh
+        run: |
+          $sha = $env:GITHUB_SHA.Substring(0,7)
+          $ts  = Get-Date -Format 'yyyyMMddHHmm'
+          $ver = "FluentZero_${sha}_${ts}_${{ inputs.scenario }}"
+          if (Test-Path 'capture_screenshot.png') { Copy-Item 'capture_screenshot.png' "${ver}.png" -Force }
+          Write-Host "capture version: ${ver}"
+          Get-ChildItem FluentZero_*_${{ inputs.scenario }}.png -ErrorAction SilentlyContinue |
+            Select-Object Name, @{n='KB';e={[math]::Round($_.Length/1KB,1)}} | Format-Table
+
+      - name: Upload capture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FluentZero-capture-${{ inputs.scenario }}
+          path: FluentZero_*_${{ inputs.scenario }}.png
+          retention-days: 30
+          if-no-files-found: error
