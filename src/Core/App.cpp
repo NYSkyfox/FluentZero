@@ -67,6 +67,8 @@ HRESULT App::Create() {
 
     Layout();
     RebuildDetail();
+    currentLight = th.light;
+    lastThemePollMs = GetTickCount64();
     lastT = (float)GetTickCount64();
     return S_OK;
 }
@@ -129,6 +131,19 @@ void App::RebuildDetail() {
     detailTheme  = th.light ? L"System theme            Light" : L"System theme            Dark";
     detailClicks = L"Primary clicked         " + std::to_wstring(primaryClicks) + L" time(s)";
     needsDraw = true;
+}
+
+void App::CheckThemeChange() {
+    ULONGLONG now = GetTickCount64();
+    if (now - lastThemePollMs < 500) return;   // 500ms 节流，避免每帧查 DWM
+    lastThemePollMs = now;
+    bool lightNow = SystemUsesLightTheme(hwnd);
+    if (lightNow != currentLight) {
+        currentLight = lightNow;
+        th = FluentTheme::Create(lightNow);     // 纯映射：深浅 + 当前强调色 → 新色板
+        RebuildDetail();                        // 刷新 "System theme: Light/Dark" 文案
+        needsDraw = true;
+    }
 }
 
 // ==================== 绘制 ====================
@@ -258,14 +273,16 @@ void App::Run() {
         float t = (float)GetTickCount64();
         float dt = Fzmn(0.1f, FzMx(0.0f, t - lastT) / 1000.0f);
         lastT = t;
+        CheckThemeChange();
         Update(dt);
         if (needsDraw && rt) {
             Draw();
             needsDraw = false;
         }
-        // 动画进行中：短睡保证 ~60fps；空闲时阻塞等待消息（零 CPU）
-        if (animating || needsDraw) Sleep(16);
-        else WaitMessage();
+// 动画进行中：短睡保证 ~60fps；空闲时限等 500ms（到期也醒来查一次系统主题，
+            // 保证"运行中切换深浅主题"能被实时检测；空闲成本≈零，无消息即回阻塞）
+            if (animating || needsDraw) Sleep(16);
+            else MsgWaitForMultipleObjectsEx(0, nullptr, 500, QS_ALLINPUT, MWMO_ALERTABLE);
     }
 }
 

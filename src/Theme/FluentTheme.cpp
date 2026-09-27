@@ -6,8 +6,12 @@
 namespace fz {
 
 FluentTheme FluentTheme::Create() {
+    return Create(SystemPrefersLight());
+}
+
+FluentTheme FluentTheme::Create(bool light) {
     FluentTheme t;
-    t.light  = SystemPrefersLight();
+    t.light  = light;
     t.accent = ReadAccent();
     if (t.light) {
         t.bg           = FzCol(0.957f, 0.957f, 0.957f, 0.55f);  // #F4F4F4 @55%

@@ -24,6 +24,8 @@ struct FluentTheme {
 
     // 从系统设置（强调色 + 深浅主题）构建完整主题
     static FluentTheme Create();
+    // 纯映射：给定深浅（light）+ 当前系统强调色，产出对应色板（不读系统）
+    static FluentTheme Create(bool light);
 };
 
 } // namespace fz

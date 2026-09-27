@@ -33,6 +33,8 @@ private:
     int primaryClicks = 0;
     std::wstring detailAccent, detailTheme, detailClicks;
     std::wstring pageTitle = L"Home";   // 右侧内容区大标题（跟随导航选中项）
+    bool currentLight = true;            // 当前已应用的主题（用于检测切换）
+    ULONGLONG lastThemePollMs = 0;       // 上次主题轮询时间（ms）
 
     // 布局坐标（供 onDraw 使用）
     float titleY = 0, subY = 0;
@@ -42,6 +44,8 @@ private:
     // 布局
     void Layout();
     void RebuildDetail();
+    // 实时跟随系统深浅主题：检测变化则重建主题 + 重绘
+    void CheckThemeChange();
 
     // 输入
     void OnMove(float x, float y);

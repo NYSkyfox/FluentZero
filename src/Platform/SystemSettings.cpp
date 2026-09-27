@@ -44,6 +44,26 @@ bool SystemPrefersLight() {
     return light;
 }
 
+bool SystemUsesLightTheme(HWND hwnd) {
+    if (hwnd) {
+        // 1) 首选 DWMWA_USE_LIGHT_THEME（=36，Win10 1903+/Win11）：直接返回深浅
+        BOOL useLight = 0;
+        if (SUCCEEDED(DwmGetWindowAttribute(hwnd, 36 /*DWMWA_USE_LIGHT_THEME*/,
+                (LPVOID)&useLight, sizeof(useLight))))
+            return useLight != FALSE;
+        // 2) 回退 DWMWA_COLORIZATION_COLOR（=32，Win10 1809+）：按色板亮度判断
+        COLORREF ccol = 0;
+        if (SUCCEEDED(DwmGetWindowAttribute(hwnd, 32 /*DWMWA_COLORIZATION_COLOR*/,
+                (LPVOID)&ccol, sizeof(ccol)))) {
+            int r = (ccol >> 16) & 0xFF, g = (ccol >> 8) & 0xFF, b = ccol & 0xFF;
+            float lum = (0.299f * r + 0.587f * g + 0.114f * b) / 255.0f;
+            return lum >= 0.5f;
+        }
+    }
+    // 3) 兜底：注册表 AppsUseLightTheme
+    return SystemPrefersLight();
+}
+
 UINT GetEffectiveDpi(HWND hwnd) {
     // 运行时解析 GetDpiForMonitor（Win8.1+ 均有，避免链接期依赖）
     static BOOL (WINAPI *pGetDpi)(HMONITOR, DWORD, UINT*, UINT*) = [] {
