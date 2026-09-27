@@ -42,6 +42,27 @@ public class FzW {
         }, IntPtr.Zero);
         return found;
     }
+    [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr h);
+    [DllImport("user32.dll")] public static extern bool IsZoomed(IntPtr h);
+    // 最小化除 keepCls 之外所有顶层可见窗口（保留桌面/任务栏），排除终端等干扰
+    public static void MinimizeExcept(string keepCls) {
+        int minimized = 0;
+        EnumWindows((h, l) => {
+            if (!IsWindow(h) || !IsWindowVisible(h)) return true;
+            var cb = new StringBuilder(256); GetClassName(h, cb, 256);
+            string cls = cb.ToString();
+            // 保留目标窗口
+            if (cls == keepCls) return true;
+            // 保留系统桌面组件（任务栏/桌面/壁纸/UWP 宿主）
+            if (cls == "Shell_TrayWnd" || cls == "Progman" || cls == "WorkerW"
+                || cls == "Shell_SecondaryTrayWnd" || cls == "ShellDesktop"
+                || cls == "Windows.UI.Core.CoreWindow") return true;
+            ShowWindow(h, 6); // SW_MINIMIZE = 6
+            minimized++;
+            return true;
+        }, IntPtr.Zero);
+        Console.WriteLine("    MinimizeExcept(" + keepCls + "): " + minimized + " 个顶层窗口已最小化");
+    }
     public static void Dump() {
         EnumWindows((h, l) => {
             if (IsWindowVisible(h)) {
@@ -89,9 +110,13 @@ if ($hwnd -eq [IntPtr]::Zero) {
 }
 
 Write-Host "找到窗口 handle=$hwnd"
-[FzW]::ShowWindow($hwnd, 9) | Out-Null
+# 1) 最小化除 FluentZero 外的所有顶层窗口（隐藏 Actions 终端等干扰源）
+[FzW]::MinimizeExcept("FluentZeroWnd")
+Start-Sleep -Milliseconds 600
+# 2) 最大化 FluentZero（铺满屏幕：内容区更大、磨砂背后只剩纯净桌面，排除终端日志干扰）
+[FzW]::ShowWindow($hwnd, 3) | Out-Null       # SW_MAXIMIZE = 3
 [FzW]::SetForegroundWindow($hwnd) | Out-Null
-Start-Sleep -Milliseconds 800   # 等重绘稳定
+Start-Sleep -Milliseconds 1200                # 等最大化重绘 + DWM 稳定
 
 $rect = New-Object FzW+RECT
 [FzW]::GetWindowRect($hwnd, [ref]$rect) | Out-Null
