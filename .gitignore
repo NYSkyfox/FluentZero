@@ -1,5 +1,8 @@
 # 构建产物（由 GitHub Actions 生成，不要入库）
 FluentZero.exe
+FluentZero_*.exe
+FluentZero_*.png
+builds/
 bin/
 obj/
 *.user

@@ -15,6 +15,17 @@ jobs:
       - name: Run + screenshot (verify components render)
         shell: pwsh
         run: pwsh -NoProfile -ExecutionPolicy Bypass -File screenshot.ps1
+      - name: Version artifacts (sha7 + build date)
+        shell: pwsh
+        run: |
+          $sha = $env:GITHUB_SHA.Substring(0,7)
+          $ts  = Get-Date -Format 'yyyyMMddHHmm'
+          $ver = "FluentZero_${sha}_${ts}"
+          if (Test-Path 'bin/x64/Release/FluentZero.exe') { Copy-Item 'bin/x64/Release/FluentZero.exe' "${ver}.exe" -Force }
+          if (Test-Path 'fluentzero_screenshot.png') { Copy-Item 'fluentzero_screenshot.png' "${ver}.png" -Force }
+          Write-Host "artifact version: ${ver}"
+          Get-ChildItem FluentZero_*.exe, FluentZero_*.png -ErrorAction SilentlyContinue |
+            Select-Object Name, @{n='KB';e={[math]::Round($_.Length/1KB,1)}} | Format-Table
       - name: List output
         run: |
           Write-Host "=== bin output ==="
@@ -24,14 +35,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: FluentZero-x64-Release
-          path: bin/x64/Release/FluentZero.exe
+          path: FluentZero_*.exe
           retention-days: 30
           if-no-files-found: error
       - name: Upload screenshot
-        if: failure() || always()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: FluentZero-screenshot
-          path: fluentzero_screenshot.png
+          path: FluentZero_*.png
           retention-days: 30
           if-no-files-found: warn
