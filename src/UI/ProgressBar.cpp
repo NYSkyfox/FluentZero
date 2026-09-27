@@ -21,7 +21,7 @@ void DrawProgressBar(Renderer& r, const ProgressBar& pb, const FluentTheme& th, 
     {
         int pct = (int)(pb.value * 100.0f + 0.5f);
         std::wstring pctStr = std::to_wstring(pct) + L"%";
-        const float pctBoxW = 36 * s;
+        const float pctBoxW = 32 * s;   // 收紧右间隙，百分比紧贴轨道末端
         r.DrawText(pctStr, pb.x + pb.w - pctBoxW, pb.y, pctBoxW, L"Segoe UI", 11 * s,
                    DWRITE_FONT_WEIGHT_NORMAL, th.text1);
     }

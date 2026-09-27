@@ -11,7 +11,7 @@ void DrawRadioButton(Renderer& r, const RadioButton& rb, const FluentTheme& th, 
     ID2D1HwndRenderTarget* rt = r.rt.Get();
     if (!rt) return;
     float hT = EaseOut(rb.hoverT);
-    float d = 18 * s, rad = d * 0.5f;
+    float d = 20 * s, rad = d * 0.5f;   // 20px（Fluent 规范，原 18 偏小）
     float cx = rb.x + rad, cy = rb.y + (rb.h - d) * 0.5f + rad;
     D2D1_ELLIPSE ell{};
     ell.point.x = cx; ell.point.y = cy; ell.radiusX = rad; ell.radiusY = rad;
@@ -30,7 +30,7 @@ void DrawRadioButton(Renderer& r, const RadioButton& rb, const FluentTheme& th, 
     // 选中：中心 accent 圆点
     if (rb.selected) {
         D2D1_ELLIPSE dot{};
-        dot.point.x = cx; dot.point.y = cy; dot.radiusX = 5 * s; dot.radiusY = 5 * s;
+        dot.point.x = cx; dot.point.y = cy; dot.radiusX = 5.5f * s; dot.radiusY = 5.5f * s;
         rt->FillEllipse(&dot, r.MakeBrush(FzCol(th.accent.r, th.accent.g, th.accent.b, 1)).Get());
     }
 

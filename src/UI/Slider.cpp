@@ -35,16 +35,18 @@ void DrawSlider(Renderer& r, const Slider& s, const FluentTheme& th, float sc) {
         rt->FillRectangle(&sel, r.MakeBrush(FzCol(th.accent.r, th.accent.g, th.accent.b, 1)).Get());
     }
 
-    // thumb（白色圆 + 中心 accent 点，拖拽时略大）
-    float thumbR = (s.dragging ? 8.5f : 7.0f) * sc;
+    // thumb（Fluent 规范：accent 实心圆 16px + 白色内圈；拖拽时略大）
+    // 中心点 = 轨道中线，垂直居中精确
+    float thumbR = (s.dragging ? 9.5f : 8.0f) * sc;
+    float txc = s.x + s.w * v, tyc = trackY + trackH * 0.5f;
     D2D1_ELLIPSE thumb{};
-    thumb.point.x = s.x + s.w * v; thumb.point.y = trackY + trackH * 0.5f;
+    thumb.point.x = txc; thumb.point.y = tyc;
     thumb.radiusX = thumbR; thumb.radiusY = thumbR;
-    rt->FillEllipse(&thumb, r.MakeBrush(FzCol(1, 1, 1, 1)).Get());
+    rt->FillEllipse(&thumb, r.MakeBrush(FzCol(th.accent.r, th.accent.g, th.accent.b, 1)).Get());
     D2D1_ELLIPSE dot{};
-    dot.point.x = thumb.point.x; dot.point.y = thumb.point.y;
+    dot.point.x = txc; dot.point.y = tyc;
     dot.radiusX = 3.5f * sc; dot.radiusY = 3.5f * sc;
-    rt->FillEllipse(&dot, r.MakeBrush(FzCol(th.accent.r, th.accent.g, th.accent.b, 1)).Get());
+    rt->FillEllipse(&dot, r.MakeBrush(FzCol(1, 1, 1, 1)).Get());
 }
 
 int HitSlider(const std::vector<Slider>& v, float x, float y) {

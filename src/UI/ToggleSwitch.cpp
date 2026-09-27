@@ -16,7 +16,8 @@ void DrawToggleSwitch(Renderer& r, const ToggleSwitch& ts, const FluentTheme& th
     const float trackW = 40 * s, trackH = 20 * s;
     float tx = ts.x, ty = ts.y + (ts.h - trackH) * 0.5f;
     const float inset = 2 * s;               // 圆钮到轨道左右内壁的间隙（原为 0，贴边，现增大一点点）
-    float knobD = trackH - 6 * s, knobR = knobD * 0.5f;
+    // 圆钮直径 14px（关）→ 12px（开），Win10 规范开态微缩
+    float knobD = trackH - 6 * s - 2 * s * tT, knobR = knobD * 0.5f;
     // 圆钮中心：关=左，开=右，按 toggleT 滑动（两端各留 inset 间隙，不再贴边）
     float knobX = tx + inset + knobR + tT * (trackW - 2 * inset - knobD);
     float knobY = ty + trackH * 0.5f;
@@ -37,11 +38,15 @@ void DrawToggleSwitch(Renderer& r, const ToggleSwitch& ts, const FluentTheme& th
     knob.point.x = knobX; knob.point.y = knobY;
     knob.radiusX = knobR; knob.radiusY = knobR;
     rt->FillEllipse(&knob, r.MakeBrush(FzCol(1, 1, 1, 1)).Get());
-    // 圆钮描边：关态深色边、开态淡灰边（30%），随 tT 平滑过渡。
-    // 目的：白色滑块在浅色底（开态浅灰 / 关态白）上始终保留一圈轮廓，
-    // 消除"纯白扁平圆块无边界"的观感（对齐 Win10 滑块的悬浮感）
+    // 软投影：+1px 下偏移（浅色 15% 黑 / 深色 35% 黑），给白滑块"浮起"感
+    D2D1_ELLIPSE shadow{};
+    shadow.point.x = knobX; shadow.point.y = knobY + 1 * s;
+    shadow.radiusX = knobR; shadow.radiusY = knobR;
+    rt->FillEllipse(&shadow, r.MakeBrush(FzCol(0, 0, 0, th.light ? 0.15f : 0.35f)).Get());
+    // 圆钮描边：关态深色边、开态中灰边（45%），随 tT 平滑过渡，
+    // 保证白色滑块在浅灰/白底上始终有清晰轮廓
     D2D1_COLOR_F offEdge = th.text1;
-    D2D1_COLOR_F onEdge = FzCol(th.text1.r, th.text1.g, th.text1.b, 0.30f);
+    D2D1_COLOR_F onEdge = FzCol(th.text1.r, th.text1.g, th.text1.b, 0.45f);
     D2D1_COLOR_F knobEdge = Lerp(offEdge, onEdge, tT);
     rt->DrawEllipse(&knob, r.MakeBrush(knobEdge).Get(), 1.0f);
 

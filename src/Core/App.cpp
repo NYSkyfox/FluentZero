@@ -155,7 +155,7 @@ void App::Layout() {
             CheckBox& c = checkboxes[i];
             c.x = colLX; c.y = ly; c.h = 28 * s;
             float tw = Measure(c.label, L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL);
-            c.w = 18 * s + 8 * s + tw;
+            c.w = 20 * s + 8 * s + tw;   // 复选框现 20px
             ly += 28 * s + (i < (int)checkboxes.size() - 1 ? 8 * s : 12 * s);
         }
         for (int i = 0; i < (int)toggles.size(); i++) {      // ToggleSwitch ×2（竖排）
@@ -169,7 +169,7 @@ void App::Layout() {
             RadioButton& c = radios[i];
             c.x = colLX; c.y = ly; c.h = 28 * s;
             float tw = Measure(c.label, L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL);
-            c.w = 18 * s + 8 * s + tw;
+            c.w = 20 * s + 8 * s + tw;   // 单选按钮现 20px
             ly += 28 * s + (i < (int)radios.size() - 1 ? 6 * s : 0);
         }
     }
@@ -198,7 +198,7 @@ void App::Layout() {
         }
         gR3Y = ry;  ry += 16 * s + 10 * s;            // "Rating"
         {
-            float ratingW = 22 * s * 5 + 10 * s;      // 5 星宽
+            float ratingW = 20 * s * 5 + 10 * s;      // 5 星宽（星间距现 20px）
             for (int i = 0; i < (int)ratings.size(); i++) {
                 RatingControl& c = ratings[i];
                 c.x = colRX; c.y = ry; c.h = 30 * s; c.w = ratingW;
@@ -214,9 +214,13 @@ void App::Layout() {
 }
 
 void App::RebuildDetail() {
-    detailAccent = L"Accent color (system)   " + HexOf(th.accent);
-    detailTheme  = th.light ? L"System theme            Light" : L"System theme            Dark";
-    detailClicks = L"Primary clicked         " + std::to_wstring(primaryClicks) + L" time(s)";
+    // 标签/值分离（DrawCard 用固定 X 网格两列绘制，不再靠空格对齐）
+    detailLabel[0] = L"Accent color (system)";
+    detailValue[0] = HexOf(th.accent);
+    detailLabel[1] = L"System theme";
+    detailValue[1] = th.light ? L"Light" : L"Dark";
+    detailLabel[2] = L"Primary clicked";
+    detailValue[2] = std::to_wstring(primaryClicks) + L" time(s)";
     needsDraw = true;
 }
 
@@ -293,8 +297,6 @@ void App::onDraw() {
 
 void App::DrawCard() {
     float s = dpiScale;
-    RECT rc; GetClientRect(hwnd, &rc);
-    float W = rc.right - rc.left;
 
     rt->FillRoundedRectangle(
         FzRR(cardX, cardY, cardX + cardW, cardY + cardH, 6 * s),
@@ -302,21 +304,31 @@ void App::DrawCard() {
     rt->DrawRoundedRectangle(
         FzRR(cardX + 0.5f, cardY + 0.5f, cardX + cardW - 0.5f, cardY + cardH - 0.5f, 6 * s),
         MakeBrush(th.cardBorder).Get(), 1);
-    // 强调色色块
+    // 内容块相对卡片垂直居中（不再固定顶部偏移 → 图标与三行文本整体对齐）
+    const float pad = 16 * s;
+    const float lineH = 24 * s, capH = 3 * s;
+    const float blockH = kDetailRows * lineH;
+    float blockTop = cardY + FzMx(pad, (cardH - blockH) * 0.5f);
+    // 强调色色块：相对三行文本块垂直居中
     rt->FillRoundedRectangle(
-        FzRR(cardX + 16 * s, cardY + 16 * s, cardX + 16 * s + 36 * s, cardY + 16 * s + 36 * s, 3 * s),
+        FzRR(cardX + pad, blockTop + (blockH - 36 * s) * 0.5f,
+             cardX + pad + 36 * s, blockTop + (blockH - 36 * s) * 0.5f + 36 * s, 3 * s),
         MakeBrush(FzCol(th.accent.r, th.accent.g, th.accent.b, 1)).Get());
-    float tx = cardX + 16 * s + 36 * s + 16 * s;
-    DrawText(detailAccent, tx, cardY + 18 * s, W, L"Consolas", 13 * s,
-             DWRITE_FONT_WEIGHT_NORMAL, th.text1);
-    DrawText(detailTheme,  tx, cardY + 44 * s, W, L"Segoe UI", 13 * s,
-             DWRITE_FONT_WEIGHT_NORMAL, th.text1);
-    DrawText(detailClicks, tx, cardY + 70 * s, W, L"Segoe UI", 13 * s,
-             DWRITE_FONT_WEIGHT_NORMAL, th.text1);
-    // 注：文案需在此两栏布局的可用宽度内（卡片右缘 - 图标右缘），
-    //     过长会被硬截断；保持精简，不做省略号逻辑（CI 软渲染下更稳）
+    // 双列固定 X 网格：标签列 / 值列（值列等宽字体右对齐，三行严格竖直对齐）
+    float lx = cardX + pad + 36 * s + 16 * s;
+    float labelW = 132 * s;
+    float colW2 = Fzmn(140 * s, cardX + cardW - pad - (lx + labelW));
+    float vx = lx + labelW + 8 * s;
+    for (int i = 0; i < kDetailRows; i++) {
+        float ty = blockTop + i * lineH + (lineH - capH) * 0.5f;   // 行内文本垂直居中
+        DrawText(detailLabel[i], lx, ty, labelW, L"Segoe UI", 13 * s,
+                 DWRITE_FONT_WEIGHT_NORMAL, th.text2);
+        DrawText(detailValue[i], vx, ty, colW2, L"Consolas", 13 * s,
+                 DWRITE_FONT_WEIGHT_NORMAL, th.text1);
+    }
+    // 底部小字（12px，可读性；文案需在可用宽度内，过长会被硬截断）
     DrawText(L"Reveal hover 150ms | Segoe MDL2 | Acrylic",
-             tx, cardY + 94 * s, W, L"Segoe UI", 11 * s,
+             cardX + pad, cardY + cardH - pad - capH, cardW - 2 * pad, L"Segoe UI", 12 * s,
              DWRITE_FONT_WEIGHT_NORMAL, th.text2);
 }
 

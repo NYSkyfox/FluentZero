@@ -9,7 +9,7 @@ namespace fz {
 
 static const wchar_t kStarFill = 0xE734;    // Segoe MDL2 StarFill
 static const wchar_t kStarEmpty = 0xE735;   // Segoe MDL2 StarOutline
-static float StarGap(float s) { return 22 * s; }
+static float StarGap(float s) { return 20 * s; }   // 18px 星 + 2px 间隙（Fluent 2-4px 规范）
 static float StarSize(float s) { return 18 * s; }
 static float StarLabelH(float s) { return 16 * s; }
 

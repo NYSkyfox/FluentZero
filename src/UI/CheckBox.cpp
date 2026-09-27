@@ -11,7 +11,7 @@ void DrawCheckBox(Renderer& r, const CheckBox& cb, const FluentTheme& th, float 
     ID2D1HwndRenderTarget* rt = r.rt.Get();
     if (!rt) return;
     float hT = EaseOut(cb.hoverT);
-    float box = 18 * s, r2 = 3 * s;
+    float box = 20 * s, r2 = 3.5f * s;   // 20x20（Fluent 规范，原 18 偏小）
     float bx = cb.x, by = cb.y + (cb.h - box) * 0.5f;
     D2D1_ROUNDED_RECT rr = FzRR(bx, by, bx + box, by + box, r2);
 
@@ -24,9 +24,9 @@ void DrawCheckBox(Renderer& r, const CheckBox& cb, const FluentTheme& th, float 
         // 白色勾（两段折线）
         if (cT > 0.05f) {
             D2D1_POINT_2F p1{}, p2{}, p3{};
-            p1.x = bx + 4 * s;  p1.y = by + 9.5 * s;
-            p2.x = bx + 8 * s;  p2.y = by + 13 * s;
-            p3.x = bx + 14 * s; p3.y = by + 5 * s;
+            p1.x = bx + 4.5f * s;  p1.y = by + 10.5f * s;
+            p2.x = bx + 9 * s;     p2.y = by + 14.5f * s;
+            p3.x = bx + 15.5f * s; p3.y = by + 5.5f * s;
             D2D1_COLOR_F tick = FzCol(1, 1, 1, cT);
             auto b = r.MakeBrush(tick);
             rt->DrawLine(p1, p2, b.Get(), 1.8f * s);
@@ -34,7 +34,9 @@ void DrawCheckBox(Renderer& r, const CheckBox& cb, const FluentTheme& th, float 
         }
     } else {
         rt->FillRoundedRectangle(&rr, r.MakeBrush(th.btnFill).Get());
-        D2D1_COLOR_F border = Lerp(th.btnBorder, th.accent, 0.5f * hT);
+        // 未选中边框：浅主题黑 45% / 深主题白 60%（原 btnBorder 10% 太浅）
+        D2D1_COLOR_F unSel = th.light ? FzCol(0, 0, 0, 0.45f) : FzCol(1, 1, 1, 0.60f);
+        D2D1_COLOR_F border = Lerp(unSel, th.accent, 0.5f * hT);
         rt->DrawRoundedRectangle(&rr, r.MakeBrush(border).Get(), (hT > 0 ? 1.5f : 1.0f) * s);
     }
 
