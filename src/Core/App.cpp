@@ -125,128 +125,92 @@ void App::Layout() {
         navItems[i].h = navItemH;
     }
 
-    // ---- 右侧内容区 ----
+    // ---- 右侧内容区（两栏 + 分组标题）----
     float m = 28 * s;
     contentX = navGeo.w + m;
-    float cw = W - contentX - m;   // 内容区可用宽度
+    float cw = W - contentX - m;          // 内容区可用宽度
+    float gapCol = 28 * s;                 // 两栏间距
+    colW = (cw - gapCol) * 0.5f;           // 每栏宽
+    colLX = contentX;
+    colRX = contentX + colW + gapCol;      // 右栏 X
+
     float y = m;
+    titleY = y;   y += 40 * s;
+    subY   = y;   y += 30 * s;
+    float y0 = y;                          // 两栏顶部（对齐）
 
-    titleY = y;          y += 40 * s;
-    subY   = y;          y += 30 * s;
-
-    // 标准按钮行
-    float gap = 10 * s, bx = contentX, by = y;
-    for (int i = 0; i < 3; i++) {
-        Button& b = buttons[i];
-        b.x = bx; b.y = by; b.h = 34 * s;
-        float tw = Measure(b.text, L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL);
-        float iconW = b.glyph ? 18 * s + 6 * s : 0;
-        b.w = Fzmn(cw, tw + iconW + 28 * s);
-        bx += b.w + gap;
-    }
-    y += 34 * s + 12 * s;
-
-    // Primary 按钮（强调色）
-    Button& pb = buttons[3];
-    pb.x = contentX; pb.y = y; pb.h = 34 * s;
-    float ptw = Measure(pb.text, L"Segoe UI", 13 * s, (DWRITE_FONT_WEIGHT)600);
-    pb.w = Fzmn(cw, ptw + 18 * s + 6 * s + 32 * s);
-    y += 34 * s + 20 * s;
-
-    // 控件行 1：CheckBox ×3
-    row1Y = y;
+    // ========== 左栏：Buttons / Selection ==========
     {
-        float cx = contentX, itemH = 28 * s;
-        for (int i = 0; i < (int)checkboxes.size(); i++) {
+        float ly = y0;
+        gL1Y = ly;  ly += 16 * s + 10 * s;            // "Buttons"
+        for (int i = 0; i < 3; i++) {                 // 3 个标准按钮（竖排，全栏宽）
+            Button& b = buttons[i];
+            b.x = colLX; b.y = ly; b.h = 34 * s; b.w = colW;
+            ly += 34 * s + 10 * s;
+        }
+        Button& pb = buttons[3];                       // Primary（强调色，全栏宽）
+        pb.x = colLX; pb.y = ly; pb.h = 34 * s; pb.w = colW;
+        ly += 34 * s + 18 * s;
+        gL2Y = ly;  ly += 16 * s + 10 * s;            // "Selection"
+        for (int i = 0; i < (int)checkboxes.size(); i++) {   // CheckBox ×3（竖排）
             CheckBox& c = checkboxes[i];
-            c.y = row1Y; c.h = itemH;
+            c.x = colLX; c.y = ly; c.h = 28 * s;
             float tw = Measure(c.label, L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL);
             c.w = 18 * s + 8 * s + tw;
-            c.x = Fzmn(cx, contentX + cw);
-            cx += c.w + 22 * s;
+            ly += 28 * s + (i < (int)checkboxes.size() - 1 ? 8 * s : 12 * s);
         }
-    }
-    y += 30 * s + 16 * s;
-
-    // 控件行 2：ToggleSwitch ×2（左）
-    row2Y = y;
-    {
-        float itemH = 28 * s;
-        float tx = contentX;
-        for (int i = 0; i < (int)toggles.size(); i++) {
+        for (int i = 0; i < (int)toggles.size(); i++) {      // ToggleSwitch ×2（竖排）
             ToggleSwitch& c = toggles[i];
-            c.y = row2Y; c.h = itemH;
+            c.x = colLX; c.y = ly; c.h = 28 * s;
             float tw = Measure(c.label, L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL);
             c.w = 40 * s + 8 * s + tw;
-            c.x = Fzmn(tx, contentX + cw);
-            tx += c.w + 24 * s;
+            ly += 28 * s + (i < (int)toggles.size() - 1 ? 8 * s : 12 * s);
         }
-    }
-    y += 30 * s + 16 * s;
-
-    // 控件行 3：RadioButton ×3（左）
-    row3Y = y;
-    {
-        float itemH = 28 * s;
-        float rx = contentX;
-        for (int i = 0; i < (int)radios.size(); i++) {
+        for (int i = 0; i < (int)radios.size(); i++) {       // RadioButton ×3（竖排）
             RadioButton& c = radios[i];
-            c.y = row3Y; c.h = itemH;
+            c.x = colLX; c.y = ly; c.h = 28 * s;
             float tw = Measure(c.label, L"Segoe UI", 13 * s, DWRITE_FONT_WEIGHT_NORMAL);
             c.w = 18 * s + 8 * s + tw;
-            c.x = Fzmn(rx, contentX + cw);
-            rx += c.w + 20 * s;
+            ly += 28 * s + (i < (int)radios.size() - 1 ? 6 * s : 0);
         }
     }
-    y += 30 * s + 14 * s;
 
-    // 进度条 + 进度环（并排）
+    // ========== 右栏：Progress / Sliders / Rating / Info ==========
     {
+        float ry = y0;
+        gR1Y = ry;  ry += 16 * s + 10 * s;            // "Progress"
         ProgressBar& p = progressBars[0];
-        p.y = y; p.h = 22 * s; p.x = contentX; p.w = Fzmn(cw * 0.42f, 260 * s);
-    }
-    for (int i = 0; i < (int)progressRings.size(); i++) {
-        ProgressRing& rg = progressRings[i];
-        float halfW = Fzmn(cw, 150 * s);
-        rg.y = y; rg.h = 22 * s;
-        rg.x = Fzmn(contentX + progressBars[0].w + 28 * s + i * (halfW + 12 * s), contentX + cw - halfW);
-        rg.w = halfW;
-    }
-    y += 22 * s + 18 * s;
-
-    // 控件行 4：Slider ×2
-    row4Y = y;
-    {
-        float itemH = 30 * s, ix = contentX;
-        float halfW = Fzmn(cw, 150 * s);
-        for (int i = 0; i < (int)sliders.size(); i++) {
+        p.x = colRX; p.y = ry; p.h = 22 * s; p.w = colW;
+        ry += 22 * s + 14 * s;
+        {                                              // ProgressRing ×2（并排）
+            float halfW = (colW - 12 * s) * 0.5f;
+            for (int i = 0; i < (int)progressRings.size(); i++) {
+                ProgressRing& rg = progressRings[i];
+                rg.x = colRX + i * (halfW + 12 * s);
+                rg.y = ry; rg.h = 22 * s; rg.w = halfW;
+            }
+        }
+        ry += 22 * s + 16 * s;
+        gR2Y = ry;  ry += 16 * s + 10 * s;            // "Sliders"
+        for (int i = 0; i < (int)sliders.size(); i++) {     // Slider ×2（竖排，全栏宽）
             Slider& c = sliders[i];
-            c.y = row4Y; c.h = itemH;
-            c.x = Fzmn(ix, contentX + cw - halfW);
-            c.w = halfW;
-            ix += halfW + 24 * s;
+            c.x = colRX; c.y = ry; c.h = 30 * s; c.w = colW;
+            ry += 30 * s + (i < (int)sliders.size() - 1 ? 12 * s : 16 * s);
         }
-    }
-    y += 30 * s + 16 * s;
-
-    // 控件行 5：RatingControl ×2
-    row5Y = y;
-    {
-        float itemH = 30 * s, ix = contentX;
-        float ratingW = 22 * s * 5 + 10 * s;   // 5 星宽
-        for (int i = 0; i < (int)ratings.size(); i++) {
-            RatingControl& c = ratings[i];
-            c.y = row5Y; c.h = itemH;
-            c.x = Fzmn(ix, contentX + cw - ratingW);
-            c.w = ratingW;
-            ix += ratingW + 30 * s;
+        gR3Y = ry;  ry += 16 * s + 10 * s;            // "Rating"
+        {
+            float ratingW = 22 * s * 5 + 10 * s;      // 5 星宽
+            for (int i = 0; i < (int)ratings.size(); i++) {
+                RatingControl& c = ratings[i];
+                c.x = colRX; c.y = ry; c.h = 30 * s; c.w = ratingW;
+                ry += 30 * s + (i < (int)ratings.size() - 1 ? 12 * s : 16 * s);
+            }
         }
+        gR4Y = ry;  ry += 16 * s + 10 * s;            // "Info" + Card
+        cardX = colRX; cardY = ry;
+        cardW = colW;
+        cardH = FzMx(110 * s, H - ry - m);
     }
-    y += 30 * s + 16 * s;
-
-    cardX = contentX; cardY = y;
-    cardW = cw;
-    cardH = FzMx(110 * s, H - y - m);
     needsDraw = true;
 }
 
@@ -274,54 +238,57 @@ void App::CheckThemeChange() {
 
 void App::onDraw() {
     RECT rc; GetClientRect(hwnd, &rc);
-    float W = rc.right - rc.left;
+    float W = rc.right - rc.left, H = rc.bottom - rc.top;
     float s = dpiScale;
 
-    // 1) 背景：Acrylic 半透明主题色
-    rt->Clear(Premul(th.bg));
+    // 1) 整窗清为全透明（磨砂只作用于左侧导航栏；内容区随后画实底覆盖，
+    //    Win10 风格：内容区不透出后方，只有侧边栏毛玻璃）
+    rt->Clear(FzCol(0, 0, 0, 0));
 
-    // 2) 左侧导航栏（磨砂面板 + Reveal 交互）
+    // 2) 右侧内容区：实底背景（从导航栏右缘画到窗口右缘，无缝、不透出后方）
+    D2D1_RECT_F cb{};
+    cb.left = navGeo.w; cb.top = 0;
+    cb.right = W;       cb.bottom = H;
+    rt->FillRectangle(&cb, MakeBrush(th.contentBg).Get());
+
+    // 3) 左侧导航栏（磨砂面板 + Reveal 交互，半透明透出后方 = Acrylic）
     DrawNavPane(*this, navGeo, navItems, th, s);
 
-    // 3) 右侧内容区：标题 / 副标题
+    // 4) 右侧内容区：标题 / 副标题
     DrawText(pageTitle, contentX, titleY, W - contentX, L"Segoe UI", 26 * s,
              (DWRITE_FONT_WEIGHT)600, th.text1);
     DrawText(L"Windows 10 Fluent Design · 纯 Win32 + Direct2D 手搓 · 零依赖单 exe",
              contentX, subY, W - contentX, L"Segoe UI", 12 * s, DWRITE_FONT_WEIGHT_NORMAL, th.text2);
 
-    // 4) 按钮
+    // 5) 分组标题（两栏分节，对齐 Win10 设置页）
+    DrawText(L"BUTTONS",   colLX, gL1Y, colW, L"Segoe UI", 11 * s, (DWRITE_FONT_WEIGHT)600, th.text2);
+    DrawText(L"SELECTION", colLX, gL2Y, colW, L"Segoe UI", 11 * s, (DWRITE_FONT_WEIGHT)600, th.text2);
+    DrawText(L"PROGRESS",  colRX, gR1Y, colW, L"Segoe UI", 11 * s, (DWRITE_FONT_WEIGHT)600, th.text2);
+    DrawText(L"SLIDERS",   colRX, gR2Y, colW, L"Segoe UI", 11 * s, (DWRITE_FONT_WEIGHT)600, th.text2);
+    DrawText(L"RATING",    colRX, gR3Y, colW, L"Segoe UI", 11 * s, (DWRITE_FONT_WEIGHT)600, th.text2);
+    DrawText(L"INFO",      colRX, gR4Y, colW, L"Segoe UI", 11 * s, (DWRITE_FONT_WEIGHT)600, th.text2);
+
+    // 6) 左栏控件：按钮 / CheckBox / ToggleSwitch / RadioButton
     for (auto& b : buttons)
         DrawButton(*this, b, th, s);
-
-    // 5) CheckBox
     for (auto& c : checkboxes)
         DrawCheckBox(*this, c, th, s);
-
-    // 6) ToggleSwitch
     for (auto& t : toggles)
         DrawToggleSwitch(*this, t, th, s);
-
-    // 7) RadioButton
     for (auto& rb : radios)
         DrawRadioButton(*this, rb, th, s);
 
-    // 8) ProgressBar
+    // 7) 右栏控件：ProgressBar / ProgressRing / Slider / RatingControl
     for (auto& p : progressBars)
         DrawProgressBar(*this, p, th, s);
-
-    // 9) ProgressRing
     for (auto& rg : progressRings)
         DrawProgressRing(*this, rg, th, s);
-
-    // 10) Slider
     for (auto& sl : sliders)
         DrawSlider(*this, sl, th, s);
-
-    // 11) RatingControl
     for (auto& rtg : ratings)
         DrawRatingControl(*this, rtg, th, s);
 
-    // 12) 信息卡
+    // 8) 信息卡
     DrawCard();
 }
 

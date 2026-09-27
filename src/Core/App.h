@@ -55,8 +55,10 @@ private:
     // 布局坐标（供 onDraw 使用）
     float titleY = 0, subY = 0;
     float cardX = 0, cardY = 0, cardW = 0, cardH = 0;
-    float contentX = 0;     // 右侧内容区起点（导航栏宽度之后）
-    float row1Y = 0, row2Y = 0, row3Y = 0, row4Y = 0, row5Y = 0;   // 控件行纵向坐标
+    float contentX = 0;      // 右侧内容区起点（导航栏宽度之后）
+    float colLX = 0, colRX = 0, colW = 0;        // 内容区两栏：左栏 X / 右栏 X / 栏宽
+    float gL1Y = 0, gL2Y = 0;                    // 左栏分组标题 Y：Buttons / Selection
+    float gR1Y = 0, gR2Y = 0, gR3Y = 0, gR4Y = 0; // 右栏分组标题 Y：Progress / Sliders / Rating / Info
 
     // 布局
     void Layout();

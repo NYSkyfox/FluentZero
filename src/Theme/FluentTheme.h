@@ -6,7 +6,8 @@ namespace fz {
 
 struct FluentTheme {
     bool light = true;
-    D2D1_COLOR_F bg;            // Acrylic 底色（带 alpha，模糊从透明处透出）
+    D2D1_COLOR_F bg;            // （旧）整窗半透明底色，现已弃用（磨砂只留侧边栏），保留兼容
+    D2D1_COLOR_F contentBg;     // 右侧内容区实底背景（不透明，Win10 内容区不透出后方）
     D2D1_COLOR_F card;
     D2D1_COLOR_F cardBorder;
     D2D1_COLOR_F text1;         // 主文字
