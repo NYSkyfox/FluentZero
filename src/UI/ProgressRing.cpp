@@ -28,12 +28,13 @@ void DrawProgressRing(Renderer& r, const ProgressRing& pr, const FluentTheme& th
     // 前景弧（accent，从顶部 -90° 顺时针，折线逼近避免依赖 D2D1_ARC 结构体）
     float v = Clamp01(pr.value);
     if (v > 0.002f) {
+        const float PI = 3.14159265358979f;   // 不依赖 MSVC 的 M_PI 宏
         int n = FzMx(2, (int)(v * 72.0f));
-        float span = v * 2.0f * (float)M_PI;
+        float span = v * 2.0f * PI;
         D2D1_POINT_2F prev{};
         bool first = true;
         for (int i = 0; i <= n; i++) {
-            float ang = -0.5f * (float)M_PI + span * (float)i / (float)n;
+            float ang = -0.5f * PI + span * (float)i / (float)n;
             D2D1_POINT_2F pt{};
             pt.x = cx + rr * cosf(ang);
             pt.y = cy + rr * sinf(ang);
@@ -41,9 +42,11 @@ void DrawProgressRing(Renderer& r, const ProgressRing& pr, const FluentTheme& th
                 rt->DrawLine(prev, pt, r.MakeBrush(FzCol(th.accent.r, th.accent.g, th.accent.b, 1)).Get(), ringT);
             prev = pt; first = false;
         }
-        // 端点圆帽
-        rt->FillEllipse(&D2D1_ELLIPSE{ { prev.x, prev.y }, ringT * 0.5f, ringT * 0.5f },
-                        r.MakeBrush(FzCol(th.accent.r, th.accent.g, th.accent.b, 1)).Get());
+        // 端点圆帽（用命名变量，避免对临时聚合初始化取地址）
+        D2D1_ELLIPSE cap{};
+        cap.point.x = prev.x; cap.point.y = prev.y;
+        cap.radiusX = ringT * 0.5f; cap.radiusY = ringT * 0.5f;
+        rt->FillEllipse(&cap, r.MakeBrush(FzCol(th.accent.r, th.accent.g, th.accent.b, 1)).Get());
     }
 
     // 标签（右侧）
