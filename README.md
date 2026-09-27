@@ -68,7 +68,10 @@ Actions 页面 → `build` → **Run workflow**，产物在 Artifacts 里下载�
     │   ├── CheckBox.{h,cpp}      复选框：accent 填充 + 白色勾
     │   ├── RadioButton.{h,cpp}   单选按钮：圆外圈 + 中心点（组内互斥）
     │   ├── ToggleSwitch.{h,cpp}  开关：轨道 + 滑动圆钮
-    │   └── ProgressBar.{h,cpp}   进度条：轨道 + accent 填充
+    │   ├── ProgressBar.{h,cpp}   进度条：轨道 + accent 填充
+    │   ├── ProgressRing.{h,cpp}  进度环：底环 + accent 弧（折线逼近）+ 端点圆帽
+    │   ├── Slider.{h,cpp}        滑块：标签 + 轨道 + accent 已选段 + 可拖拽 thumb
+    │   └── RatingControl.{h,cpp} 星级评分：5 颗星（MDL2 字形）+ hover 预览
     └── Core/             第 6 层 · 应用编排（依赖所有层）
         └── App.{h,cpp}          窗口 / 布局 / 输入 / 消息循环 / 动画调度
 ```
@@ -124,11 +127,12 @@ HWND（WS_EX_NOREDIRECTIONBITMAP，保留原生标题栏）
 | ToggleSwitch | ✅ | 40×20 轨道 + 滑动圆钮，开/关 accent 过渡 |
 | ProgressBar | ✅ | 标签 + 轨道 + accent 填充，value 由 App 驱动 |
 | ComboBox | ⏳ | 含弹出层，较复杂 |
-| Slider | ⏳ | 含拖拽 thumb |
+| Slider | ✅ | 标签 + 轨道 + accent 已选段 + 可拖拽 thumb（hover 放大）|
+| RatingControl | ✅ | 5 颗星（Segoe MDL2 StarFill/Outline）+ hover 预览 + 点选打分 |
 | TextBox / PasswordBox | ❌ | 需 IME，手搓最大坑，有意推迟 |
 | NumberBox / AutoSuggestBox | ❌ | 低优先级 |
 | DatePicker / TimePicker | ❌ | 依赖弹出面板 |
-| ProgressBar / ProgressRing | ✅ / ⏳ | ProgressBar 已完成；ProgressRing 未做 |
+| ProgressRing | ✅ | 底环 + accent 弧（折线逼近，规避 D2D1_ARC）+ 端点圆帽，value 由 App 驱动 |
 
 **数据 / 容器控件**
 
@@ -149,13 +153,15 @@ HWND（WS_EX_NOREDIRECTIONBITMAP，保留原生标题栏）
 | 标题 / 副标题（TextBlock） | ✅ | |
 | Border / Grid / StackPanel | — | 由 Core 布局逻辑直接承担，无独立控件抽象 |
 
-**进度小结**：已覆盖核心交互控件 **Button / CheckBox / RadioButton / ToggleSwitch / ProgressBar**
-+ 导航组件 **NavPane** + 非交互区块（Card），其余按上表优先级推进。
+**进度小结**：已覆盖核心交互控件 **Button / CheckBox / RadioButton / ToggleSwitch /
+ProgressBar / ProgressRing / Slider / RatingControl** + 导航组件 **NavPane**
++ 非交互区块（Card），其余按上表优先级推进。
 
 ### 里程碑
 
 - [ ] 完整版 Reveal（沿边扫过）
 - [x] CheckBox / ToggleSwitch / RadioButton / ProgressBar
+- [x] ProgressRing / Slider / RatingControl
 - [ ] 焦点管理（Tab 导航 + 焦点描边）
 - [ ] 滚动条 / 列表（ListView 雏形）
 - [ ] 窗口圆角可选（Win10 无圆角，Win11 用 DWM 属性）
