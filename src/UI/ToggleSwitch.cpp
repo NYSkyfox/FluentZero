@@ -23,14 +23,14 @@ void DrawToggleSwitch(Renderer& r, const ToggleSwitch& ts, const FluentTheme& th
     float knobX = tx + inset + knobR + tT * (trackW - 2 * inset - knobD);
     float knobY = ty + trackH * 0.5f;
 
-    // 轨道（WinUI 3 主题资源）：
-//   OFF 填充 = 6% 黑（浅）/ 10% 白（深），hover 加深到 8%/12%
+    // 轨道：
+//   OFF 填充 = 白色底（深色 #333），hover 微灰
 //   ON  填充 = accent 实底，hover 提亮 12%
 //   OFF 描边 = 37% 黑（浅）/ 22% 白（深），hover 加深；ON 描边 = 深一度 accent
     D2D1_ROUNDED_RECT track = FzRR(tx, ty, tx + trackW, ty + trackH, trackH * 0.5f);
     D2D1_COLOR_F off = th.light
-        ? Lerp(FzCol(0, 0, 0, 0.06f), FzCol(0, 0, 0, 0.08f), hT)
-        : Lerp(FzCol(1, 1, 1, 0.10f), FzCol(1, 1, 1, 0.12f), hT);
+        ? Lerp(FzCol(1, 1, 1, 1), FzCol(0.96f, 0.96f, 0.96f, 1), hT)
+        : Lerp(FzCol(0.2f, 0.2f, 0.2f, 1), FzCol(0.24f, 0.24f, 0.24f, 1), hT);
     D2D1_COLOR_F on = FzCol(th.accent.r, th.accent.g, th.accent.b, 1);
     on = Lerp(on, Brighten(on, 0.12f), hT);               // ON hover 提亮
     rt->FillRoundedRectangle(&track, r.MakeBrush(off).Get());
@@ -43,16 +43,14 @@ void DrawToggleSwitch(Renderer& r, const ToggleSwitch& ts, const FluentTheme& th
     D2D1_COLOR_F edge = Lerp(offEdge, onEdge, tT);
     rt->DrawRoundedRectangle(&track, r.MakeBrush(edge).Get(), 1.0f);
 
-    // 滑块：纯白实心圆 + 1px 下偏移黑阴影（ShadowThemeColor ≈ 25% 黑，深色主题加重）。
-    // 投影是 WinUI 3 白色滑块与浅灰轨道分层的核心手段（模板内为 DropShadowEffect）
-    D2D1_ELLIPSE shadow{};
-    shadow.point.x = knobX; shadow.point.y = knobY + 1 * s;
-    shadow.radiusX = knobR; shadow.radiusY = knobR;
-    rt->FillEllipse(&shadow, r.MakeBrush(FzCol(0, 0, 0, th.light ? 0.25f : 0.50f)).Get());
+    // 滑块：OFF 灰色实心圆（浅 #737373 / 深 #B3B3B3），ON 过渡到白色——
+    // 与白色 OFF 轨道对调后的经典高对比观感（灰滑块在白轨道上清晰可辨）
     D2D1_ELLIPSE knob{};
     knob.point.x = knobX; knob.point.y = knobY;
     knob.radiusX = knobR; knob.radiusY = knobR;
-    rt->FillEllipse(&knob, r.MakeBrush(FzCol(1, 1, 1, 1)).Get());
+    D2D1_COLOR_F knobOff = th.light ? FzCol(0.45f, 0.45f, 0.45f, 1) : FzCol(0.70f, 0.70f, 0.70f, 1);
+    D2D1_COLOR_F knobFill = Lerp(knobOff, FzCol(1, 1, 1, 1), tT);
+    rt->FillEllipse(&knob, r.MakeBrush(knobFill).Get());
 
     // 标签 + 实时状态（On/Off）
     r.DrawText(ts.label + L" : " + (ts.on ? L"On" : L"Off"),
