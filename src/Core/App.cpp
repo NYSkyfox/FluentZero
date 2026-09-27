@@ -181,8 +181,8 @@ void App::Layout() {
         float ry = y0;
         gR1Y = ry;  ry += 16 * s + 10 * s;            // "Progress"
         ProgressBar& p = progressBars[0];
-        p.x = colRX; p.y = ry; p.h = 22 * s; p.w = colW;
-        ry += 22 * s + 14 * s;
+        p.x = colRX; p.y = ry; p.h = 26 * s; p.w = colW;   // 加高：label 一行 + 下方轨道一行
+        ry += 26 * s + 12 * s;
         {                                              // ProgressRing ×2（并排）
             float halfW = (colW - 12 * s) * 0.5f;
             for (int i = 0; i < (int)progressRings.size(); i++) {

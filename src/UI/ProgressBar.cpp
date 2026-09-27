@@ -11,7 +11,8 @@ void DrawProgressBar(Renderer& r, const ProgressBar& pb, const FluentTheme& th, 
     ID2D1HwndRenderTarget* rt = r.rt.Get();
     if (!rt) return;
     const float barH = 4 * s;
-    float by = pb.y + (pb.h - barH) * 0.5f;
+    // 轨道固定在 label 文本下方（原为垂直居中 → 与 label 同高重叠遮挡）
+    float by = pb.y + 16 * s;
 
     // 标签（左）+ 百分比（右）。百分比用固定宽框左对齐，不用 Measure——
     // CI 的 WARP 软渲染下 Measure 可能返回异常值（Button 文字消失的同款根因）
