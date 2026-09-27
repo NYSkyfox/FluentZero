@@ -52,18 +52,35 @@ public class Cap {
             return true;
         }, IntPtr.Zero);
     }
+    // 最小化所有顶层可见窗口（保留桌面/任务栏），露出原始桌面
+    // 比 keybd_event 发 Win+D 可靠：Runner 会话里 Win 键属系统保留键常被拦截，
+    // 直接 ShowWindow(SW_MINIMIZE) 每个顶层窗口能确保 agent 终端窗口被隐藏
+    [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr h);
+    public static void MinimizeAll() {
+        int minimized = 0;
+        EnumWindows((h, l) => {
+            if (!IsWindow(h) || !IsWindowVisible(h)) return true;
+            var cb = new StringBuilder(256); GetClassName(h, cb, 256);
+            string cls = cb.ToString();
+            // 保留系统桌面组件（任务栏/桌面图标层/壁纸层/UWP 宿主窗口）
+            if (cls == "Shell_TrayWnd" || cls == "Progman" || cls == "WorkerW"
+                || cls == "Shell_SecondaryTrayWnd" || cls == "ShellDesktop"
+                || cls == "Windows.UI.Core.CoreWindow") return true;
+            ShowWindow(h, 6); // SW_MINIMIZE = 6
+            minimized++;
+            return true;
+        }, IntPtr.Zero);
+        Console.WriteLine("    MinimizeAll: " + minimized + " 个顶层窗口已最小化");
+    }
 }
 "@
 
 # ---------- 工具函数 ----------
 function Show-Desktop {
-    # Win+D：最小化所有窗口，显示桌面
-    [Cap]::keybd_event(0x5B, 0, 0, [IntPtr]::Zero)   # Win down
-    [Cap]::keybd_event(0x02, 0, 0, [IntPtr]::Zero)   # D down
-    [Cap]::keybd_event(0x02, 0, 2, [IntPtr]::Zero)   # D up
-    [Cap]::keybd_event(0x5B, 0, 2, [IntPtr]::Zero)   # Win up
+    # 强制最小化所有顶层可见窗口，露出原始桌面（比 Win+D 键可靠）
+    [Cap]::MinimizeAll()
     Start-Sleep -Milliseconds 1200
-    Write-Host "  已最小化所有窗口 (Win+D)"
+    Write-Host "  已最小化所有顶层窗口（终端已隐藏）"
 }
 
 function Open-Settings {
