@@ -7,7 +7,7 @@
 
 namespace fz {
 
-void DrawCard(Renderer& r, const Card& c, const FluentTheme& th, float s) {
+void DrawCardWidget(Renderer& r, const Card& c, const FluentTheme& th, float s) {
     ID2D1HwndRenderTarget* rt = r.rt.Get();
     if (!rt) return;
 

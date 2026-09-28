@@ -152,7 +152,7 @@ void HomePage::Draw(App& app) {
     for (auto& rtg : ratings)     DrawRatingControl(app, rtg, th, s);
 
     // 独立 Card 控件
-    for (auto& c : cards) DrawCard(app, c, th, s);
+    for (auto& c : cards) DrawCardWidget(app, c, th, s);
 
     DrawCard(app);
 }
