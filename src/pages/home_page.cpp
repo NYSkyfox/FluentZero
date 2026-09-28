@@ -1,5 +1,7 @@
 #include "pch.h"
 #include "pages/HomePage.h"
+#include "UI/Button.h"
+#include "UI/Card.h"
 #include "Core/App.h"
 #include "Utils/MathUtils.h"
 #include "Utils/ColorUtils.h"
@@ -28,6 +30,10 @@ HomePage::HomePage() {
     progressRings.push_back({ L"Loading...", 0.4f, 0, 0, 0, 0, true });
     sliders.push_back({ L"Brightness", 0.70f, 0, 0, 0, 0, 0, false, false });
     ratings.push_back({ L"How do you rate this?", 4, 0, 0, 0, 0, 0 });
+
+    // Card 控件示例
+    cards.push_back({ L"News card", L"Hello, this is a Card.\nIt supports multi-line content.\n右侧Demo卡片演示用。", 0, 0, 0, 0, false });
+    cards.push_back({ L"Profile", L"Name: NYSkyfox\nRole: Developer\nLocation: Windows", 0, 0, 0, 0, false });
 }
 
 void HomePage::Layout(App& app, const PageRegion& r) {
@@ -105,10 +111,19 @@ void HomePage::Layout(App& app, const PageRegion& r) {
             }
         }
         gR4Y = ry;  ry += 16 * s + 10 * s;
-        cardX = colRX; cardY = ry; cardW = colW;
-        const float cardMin = (kDetailRows * 24 + 16 * 2 + 18 + 20) * s;
-        cardH = FzMx(cardMin, h - ry - 0);
+    cardX = colRX; cardY = ry; cardW = colW;
+    const float cardMin = (kDetailRows * 24 + 16 * 2 + 18 + 20) * s;
+    cardH = FzMx(cardMin, h - ry - 0);
+
+    // Card 示例（堆叠放置）
+    for (int i = 0; i < (int)cards.size(); i++) {
+        cards[i].x = cardX;
+        cards[i].y = ry + i * (80 * s + 12 * s);
+        cards[i].w = cardW;
+        cards[i].h = 80 * s;
+        ry = cards[i].y + cards[i].h + 12 * s;
     }
+}
 }
 
 void HomePage::Draw(App& app) {
@@ -135,6 +150,9 @@ void HomePage::Draw(App& app) {
     for (auto& rg : progressRings) DrawProgressRing(app, rg, th, s);
     for (auto& sl : sliders)      DrawSlider(app, sl, th, s);
     for (auto& rtg : ratings)     DrawRatingControl(app, rtg, th, s);
+
+    // 独立 Card 控件
+    for (auto& c : cards) DrawCard(app, c, th, s);
 
     DrawCard(app);
 }

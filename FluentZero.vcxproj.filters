@@ -54,6 +54,8 @@
     <ClCompile Include="src\UI\Slider.cpp"><Filter>src\UI</Filter></ClCompile>
     <ClInclude Include="src\UI\RatingControl.h"><Filter>src\UI</Filter></ClInclude>
     <ClCompile Include="src\UI\RatingControl.cpp"><Filter>src\UI</Filter></ClCompile>
+    <ClInclude Include="src\UI\Card.h"><Filter>src\UI</Filter></ClInclude>
+    <ClCompile Include="src\UI\Card.cpp"><Filter>src\UI</Filter></ClCompile>
     <ClInclude Include="src\pages\Page.h"><Filter>src\pages</Filter></ClInclude>
     <ClInclude Include="src\pages\HomePage.h"><Filter>src\pages</Filter></ClInclude>
     <ClCompile Include="src\pages\home_page.cpp"><Filter>src\pages</Filter></ClCompile>

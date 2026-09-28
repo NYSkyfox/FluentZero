@@ -12,6 +12,7 @@
 #include "UI/ProgressRing.h"
 #include "UI/Slider.h"
 #include "UI/RatingControl.h"
+#include "UI/Card.h"
 
 namespace fz {
 
@@ -39,6 +40,7 @@ public:
     std::vector<ProgressRing> progressRings; // 单一样式
     std::vector<Slider> sliders;          // 单一样式
     std::vector<RatingControl> ratings;   // 单一样式
+    std::vector<Card> cards;             // 卡片示例
 
     // 供 App 读取（Info 卡的 "Primary clicks"）
     int primaryClicks = 0;
