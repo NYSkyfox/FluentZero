@@ -31,7 +31,7 @@ struct Renderer {
     void DrawText(const std::wstring& t, float x, float y, float maxW,
                   const wchar_t* face, float size, DWRITE_FONT_WEIGHT weight, D2D1_COLOR_F c,
                   DWRITE_TEXT_ALIGNMENT align = DWRITE_TEXT_ALIGNMENT_LEADING,
-                  DWRITE_PARAGRAPH_ALIGNMENT vAlign = DWRITE_PARAGRAPH_ALIGNMENT_TOP,
+                  DWRITE_PARAGRAPH_ALIGNMENT vAlign = DWRITE_PARAGRAPH_ALIGNMENT_NEAR,
                   float maxH = 1e6f);
     // 测量文本宽度（用于按钮自动宽度）
     float Measure(const std::wstring& t, const wchar_t* face, float size, DWRITE_FONT_WEIGHT weight);
