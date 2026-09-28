@@ -14,6 +14,7 @@ struct Button {
     UINT32 glyph = 0;      // Segoe MDL2 Assets 码位，0 = 无图标
     bool primary = false;  // 强调色（accent 实底）
     bool subtle = false;   // 轻量（无填充无边框，仅 hover 淡底）
+    bool disabled = false; // 禁用（灰态，不可交互）
 
     // 逻辑坐标（96dpi 基准，绘制时按 dpiScale 缩放）
     float x = 0, y = 0, w = 0, h = 0;

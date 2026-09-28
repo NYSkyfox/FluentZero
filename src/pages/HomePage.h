@@ -31,7 +31,7 @@ public:
     void OnThemeChanged(App& app) override;
 
     // 控件（每种仅展示其样式/状态数）
-    std::vector<Button> buttons;          // 标准 / Primary / Subtle
+    std::vector<Button> buttons;          // 标准 / Primary / Subtle / Disabled
     std::vector<CheckBox> checkboxes;     // 未勾选 / 已勾选
     std::vector<RadioButton> radios;      // 选中 / 未选中
     std::vector<ToggleSwitch> toggles;    // On / Off / Disabled

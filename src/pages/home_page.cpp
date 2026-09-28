@@ -8,10 +8,11 @@ namespace fz {
 
 // 构造期填充控件（每种仅展示其样式/状态数）
 HomePage::HomePage() {
-    // Button 三种样式各一次：标准 / Primary / Subtle
-    buttons.push_back({ L"Button",  0, false, false });
-    buttons.push_back({ L"Primary", 0, true,  false });
-    buttons.push_back({ L"Subtle",  0, false, true  });
+    // Button 三种样式 + 禁用状态各一次
+    buttons.push_back({ L"Button",  0, false, false, false });
+    buttons.push_back({ L"Primary", 0, true,  false, false });
+    buttons.push_back({ L"Subtle",  0, false, true,  false });
+    buttons.push_back({ L"Disabled",0, false, false, true  });
     // CheckBox 两态：未勾选 / 已勾选
     checkboxes.push_back({ L"Animations", false, 0, 0, 0, 0, 0, 0, 0, false, false });
     checkboxes.push_back({ L"Sounds",     true,  0, 0, 0, 0, 0, 0, 0, false, false });
@@ -49,8 +50,8 @@ void HomePage::Layout(App& app, const PageRegion& r) {
         gL1Y = ly;  ly += 16 * s + 10 * s;
         for (int i = 0; i < (int)buttons.size(); i++) {
             Button& b = buttons[i];
-            b.x = colLX; b.y = ly; b.h = 34 * s; b.w = colW;
-            ly += 34 * s + (i < (int)buttons.size() - 1 ? 10 * s : 18 * s);
+            b.x = colLX; b.y = ly; b.h = 32 * s; b.w = colW;
+            ly += 32 * s + (i < (int)buttons.size() - 1 ? 10 * s : 18 * s);
         }
         gL2Y = ly;  ly += 16 * s + 10 * s;
         for (int i = 0; i < (int)checkboxes.size(); i++) {
