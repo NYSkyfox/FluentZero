@@ -154,7 +154,8 @@ void HomePage::DrawCard(App& app) {
     const float pad = 16 * s;
     const float lineH = 24 * s, capH = 3 * s;
     const float blockH = kDetailRows * lineH;
-    float blockTop = cardY + FzMx(pad, (cardH - blockH) * 0.5f);
+    // 顶部对齐（不强制垂直居中）
+    float blockTop = cardY + pad;
     // 强调色色块：相对文本块垂直居中
     rt->FillRoundedRectangle(
         FzRR(cardX + pad, blockTop + (blockH - 36 * s) * 0.5f,
