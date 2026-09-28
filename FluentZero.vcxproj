@@ -88,6 +88,16 @@
     <ClCompile Include="src\UI\Slider.cpp" />
     <ClInclude Include="src\UI\RatingControl.h" />
     <ClCompile Include="src\UI\RatingControl.cpp" />
+    <!-- Pages 层（一个页面对应一个文件：home_page / settings_page / accounts_page / network_page） -->
+    <ClInclude Include="src\pages\Page.h" />
+    <ClInclude Include="src\pages\HomePage.h" />
+    <ClCompile Include="src\pages\home_page.cpp" />
+    <ClInclude Include="src\pages\SettingsPage.h" />
+    <ClCompile Include="src\pages\settings_page.cpp" />
+    <ClInclude Include="src\pages\AccountsPage.h" />
+    <ClCompile Include="src\pages\accounts_page.cpp" />
+    <ClInclude Include="src\pages\NetworkPage.h" />
+    <ClCompile Include="src\pages\network_page.cpp" />
     <!-- Core 层 -->
     <ClInclude Include="src\Core\App.h" />
     <ClCompile Include="src\Core\App.cpp" />

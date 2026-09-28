@@ -16,6 +16,9 @@
     <Filter Include="src\UI">
       <UniqueIdentifier>{a0000000-0000-0000-0000-000000000006}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\pages">
+      <UniqueIdentifier>{a0000000-0000-0000-0000-000000000008}</UniqueIdentifier>
+    </Filter>
     <Filter Include="src\Core">
       <UniqueIdentifier>{a0000000-0000-0000-0000-000000000007}</UniqueIdentifier>
     </Filter>
@@ -51,6 +54,15 @@
     <ClCompile Include="src\UI\Slider.cpp"><Filter>src\UI</Filter></ClCompile>
     <ClInclude Include="src\UI\RatingControl.h"><Filter>src\UI</Filter></ClInclude>
     <ClCompile Include="src\UI\RatingControl.cpp"><Filter>src\UI</Filter></ClCompile>
+    <ClInclude Include="src\pages\Page.h"><Filter>src\pages</Filter></ClInclude>
+    <ClInclude Include="src\pages\HomePage.h"><Filter>src\pages</Filter></ClInclude>
+    <ClCompile Include="src\pages\home_page.cpp"><Filter>src\pages</Filter></ClCompile>
+    <ClInclude Include="src\pages\SettingsPage.h"><Filter>src\pages</Filter></ClInclude>
+    <ClCompile Include="src\pages\settings_page.cpp"><Filter>src\pages</Filter></ClCompile>
+    <ClInclude Include="src\pages\AccountsPage.h"><Filter>src\pages</Filter></ClInclude>
+    <ClCompile Include="src\pages\accounts_page.cpp"><Filter>src\pages</Filter></ClCompile>
+    <ClInclude Include="src\pages\NetworkPage.h"><Filter>src\pages</Filter></ClInclude>
+    <ClCompile Include="src\pages\network_page.cpp"><Filter>src\pages</Filter></ClCompile>
     <ClInclude Include="src\Core\App.h"><Filter>src\Core</Filter></ClInclude>
     <ClCompile Include="src\Core\App.cpp"><Filter>src\Core</Filter></ClCompile>
   </ItemGroup>
