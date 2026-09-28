@@ -65,15 +65,16 @@ ComPtr<ID2D1SolidColorBrush> Renderer::MakeBrush(D2D1_COLOR_F c) {
 
 void Renderer::DrawText(const std::wstring& t, float x, float y, float maxW,
                         const wchar_t* face, float size, DWRITE_FONT_WEIGHT weight, D2D1_COLOR_F c,
-                        DWRITE_TEXT_ALIGNMENT align) {
+                        DWRITE_TEXT_ALIGNMENT align, DWRITE_PARAGRAPH_ALIGNMENT vAlign, float maxH) {
     if (!dw) return;
     ComPtr<IDWriteTextFormat> f;
     if (FAILED(dw->CreateTextFormat(face, nullptr, weight, DWRITE_FONT_STYLE_NORMAL,
             DWRITE_FONT_STRETCH_NORMAL, size, L"en-us", &f)))
         return;
     f->SetTextAlignment(align);
+    f->SetParagraphAlignment(vAlign);
     ComPtr<IDWriteTextLayout> lay;
-    if (FAILED(dw->CreateTextLayout(t.c_str(), (UINT32)t.size(), f.Get(), maxW, 1e6f, &lay)))
+    if (FAILED(dw->CreateTextLayout(t.c_str(), (UINT32)t.size(), f.Get(), maxW, maxH, &lay)))
         return;
     D2D1_POINT_2F p{};
     p.x = x; p.y = y;

@@ -25,11 +25,14 @@ struct Renderer {
     // 创建纯色画刷（自动预乘 alpha）
     ComPtr<ID2D1SolidColorBrush> MakeBrush(D2D1_COLOR_F c);
     // 在 (x,y) 处绘制文本
-    // align: 水平对齐（默认左对齐；按钮文字等可传 DWRITE_TEXT_ALIGNMENT_CENTER，
-    //        此时文字在 [x, x+maxW] 范围内水平居中，无需 Measure）
+    // align: 水平对齐（默认左对齐）
+    // vAlign: 垂直对齐（默认顶部；传 CENTER 时在 [y, y+maxH] 内垂直居中）
+    // maxH: 布局框高度（默认 1e6=不限；垂直居中时传实际可用高度如按钮高度）
     void DrawText(const std::wstring& t, float x, float y, float maxW,
                   const wchar_t* face, float size, DWRITE_FONT_WEIGHT weight, D2D1_COLOR_F c,
-                  DWRITE_TEXT_ALIGNMENT align = DWRITE_TEXT_ALIGNMENT_LEADING);
+                  DWRITE_TEXT_ALIGNMENT align = DWRITE_TEXT_ALIGNMENT_LEADING,
+                  DWRITE_PARAGRAPH_ALIGNMENT vAlign = DWRITE_PARAGRAPH_ALIGNMENT_TOP,
+                  float maxH = 1e6f);
     // 测量文本宽度（用于按钮自动宽度）
     float Measure(const std::wstring& t, const wchar_t* face, float size, DWRITE_FONT_WEIGHT weight);
 };
