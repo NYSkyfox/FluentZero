@@ -21,8 +21,9 @@ void DrawButton(Renderer& r, const Button& b, const FluentTheme& th, float s) {
         if (!b.subtle)
             rt->FillRoundedRectangle(FzRR(b.x, b.y, b.x + b.w, b.y + b.h, rad),
                                      r.MakeBrush(fill).Get());
-        r.DrawText(b.text + L" : Disabled", b.x + 12 * s, b.y + b.h * 0.5f - 7 * s, b.w,
-                   L"Segoe UI", 14 * s, DWRITE_FONT_WEIGHT_NORMAL, txt);
+        r.DrawText(b.text + L" : Disabled", b.x, b.y + b.h * 0.5f - 7 * s, b.w,
+                   L"Segoe UI", 14 * s, DWRITE_FONT_WEIGHT_NORMAL, txt,
+                   DWRITE_TEXT_ALIGNMENT_CENTER);
         return;
     }
 
@@ -65,10 +66,11 @@ void DrawButton(Renderer& r, const Button& b, const FluentTheme& th, float s) {
             r.MakeBrush(rc_).Get(), 1.5f * s);
     }
 
-    // 文字：固定左对齐 + 当前状态（不用 Measure 居中——CI 软渲染下 Measure 可能返回异常值）
+    // 文字：水平居中（DirectWrite 对齐属性，不依赖 Measure）+ 当前状态
     std::wstring state = b.pressed ? L"Pressed" : (b.hot ? L"Hover" : L"Normal");
-    r.DrawText(b.text + L" : " + state, b.x + 12 * s, b.y + b.h * 0.5f - 7 * s, b.w,
-               L"Segoe UI", 14 * s, DWRITE_FONT_WEIGHT_NORMAL, txt);
+    r.DrawText(b.text + L" : " + state, b.x, b.y + b.h * 0.5f - 7 * s, b.w,
+               L"Segoe UI", 14 * s, DWRITE_FONT_WEIGHT_NORMAL, txt,
+               DWRITE_TEXT_ALIGNMENT_CENTER);
 }
 
 int HitButton(const std::vector<Button>& buttons, float x, float y) {
