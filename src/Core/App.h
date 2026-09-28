@@ -48,8 +48,8 @@ private:
     bool quit = false;
     int primaryClicks = 0;
     int sliderDragIndex = -1;    // 正在拖拽的 slider（-1 无）
-    // Info 卡数据：三行（标签 + 值），DrawCard 双列固定 X 网格绘制
-    static const int kDetailRows = 3;
+    // Info 卡数据：多行运行时信息（标签 + 值），DrawCard 双列固定 X 网格绘制
+    static const int kDetailRows = 6;
     std::wstring detailLabel[kDetailRows], detailValue[kDetailRows];
     std::wstring pageTitle = L"Home";   // 右侧内容区大标题（跟随导航选中项）
     bool currentLight = true;            // 当前已应用的主题（用于检测切换）

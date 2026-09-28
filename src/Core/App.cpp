@@ -200,19 +200,32 @@ void App::Layout() {
         gR4Y = ry;  ry += 16 * s + 10 * s;            // "Info" + Card
         cardX = colRX; cardY = ry;
         cardW = colW;
-        cardH = FzMx(110 * s, H - ry - m);
+        // 卡片需容纳 6 行信息：6*24(行) + 上下 padding(16*2) + 底部小字(约 18) + 余量
+        const float cardMin = (kDetailRows * 24 + 16 * 2 + 18 + 20) * s;
+        cardH = FzMx(cardMin, H - ry - m);
     }
     needsDraw = true;
 }
 
 void App::RebuildDetail() {
-    // 标签/值分离（DrawCard 用固定 X 网格两列绘制，不再靠空格对齐）
-    detailLabel[0] = L"Accent color (system)";
-    detailValue[0] = HexOf(th.accent);
-    detailLabel[1] = L"System theme";
-    detailValue[1] = th.light ? L"Light" : L"Dark";
-    detailLabel[2] = L"Primary clicked";
-    detailValue[2] = std::to_wstring(primaryClicks) + L" time(s)";
+    // 6 行运行时信息（标签/值分离，DrawCard 用固定 X 网格两列绘制，不再靠空格对齐）
+    RECT rc; GetClientRect(hwnd, &rc);
+    const int cw = rc.right - rc.left, chh = rc.bottom - rc.top;
+    const int dpiPct = (int)(dpiScale * 100.0f + 0.5f);
+
+    detailLabel[0] = L"System theme";
+    detailValue[0] = th.light ? L"Light" : L"Dark";
+    detailLabel[1] = L"Accent color";
+    detailValue[1] = HexOf(th.accent);
+    detailLabel[2] = L"DPI scale";
+    detailValue[2] = std::to_wstring(dpiPct) + L"% (" +
+                     std::to_wstring((int)(dpiScale * 96.0f + 0.5f)) + L" DPI)";
+    detailLabel[3] = L"Client size";
+    detailValue[3] = std::to_wstring(cw) + L" x " + std::to_wstring(chh) + L" px";
+    detailLabel[4] = L"Current page";
+    detailValue[4] = pageTitle;
+    detailLabel[5] = L"Primary clicks";
+    detailValue[5] = std::to_wstring(primaryClicks);
     needsDraw = true;
 }
 
@@ -544,6 +557,7 @@ LRESULT App::WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         if (LOWORD(l) > 0 && HIWORD(l) > 0)
             Resize(hwnd, LOWORD(l), HIWORD(l));
         Layout();
+        if (hwnd) RebuildDetail();   // 刷新 Info 卡的 Client size
         return 0;
     case WM_MOUSEMOVE:
         OnMove(GET_X_LPARAM(l), GET_Y_LPARAM(l));
