@@ -156,13 +156,8 @@ void HomePage::DrawCard(App& app) {
     const float blockH = kDetailRows * lineH;
     // 顶部对齐（不强制垂直居中）
     float blockTop = cardY + pad;
-    // 强调色色块：相对文本块垂直居中
-    rt->FillRoundedRectangle(
-        FzRR(cardX + pad, blockTop + (blockH - 36 * s) * 0.5f,
-             cardX + pad + 36 * s, blockTop + (blockH - 36 * s) * 0.5f + 36 * s, 3 * s),
-        app.MakeBrush(FzCol(th.accent.r, th.accent.g, th.accent.b, 1)).Get());
-    // 双列固定 X 网格：标签列 / 值列
-    float lx = cardX + pad + 36 * s + 16 * s;
+    // 双列固定 X 网格：标签列 / 值列（左对齐，无强调色色块）
+    float lx = cardX + pad;
     float labelW = 132 * s;
     float colW2 = Fzmn(140 * s, cardX + cardW - pad - (lx + labelW));
     float vx = lx + labelW + 8 * s;
