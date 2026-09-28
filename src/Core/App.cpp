@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "Core/App.h"
 #include "Utils/MathUtils.h"
+#include "Utils/ColorUtils.h"
 #include "Platform/SystemSettings.h"
 #include "UI/NavPane.h"
 #include "pages/HomePage.h"
