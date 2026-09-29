@@ -55,7 +55,7 @@ private:
 
     // 布局坐标
     float contentX = 0, colLX = 0, colRX = 0, colW = 0;
-    float gL1Y = 0, gL2Y = 0, gR1Y = 0, gR2Y = 0, gR3Y = 0, gR4Y = 0;
+    float gL1Y = 0, gL2Y = 0, gR1Y = 0, gR2Y = 0, gR3Y = 0, gR4Y = 0, gR5Y = 0;
     float cardX = 0, cardY = 0, cardW = 0, cardH = 0;
     int sliderDragIndex = -1;
 };

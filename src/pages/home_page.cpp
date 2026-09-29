@@ -111,18 +111,21 @@ void HomePage::Layout(App& app, const PageRegion& r) {
             }
         }
         gR4Y = ry;  ry += 16 * s + 10 * s;
-    cardX = colRX; cardY = ry; cardW = colW;
-    const float cardMin = (kDetailRows * 24 + 16 * 2 + 18 + 20) * s;
-    cardH = FzMx(cardMin, h - ry - 0);
+// INFO卡
+cardX = colRX; cardY = ry; cardW = colW;
+const float cardMin = (kDetailRows * 24 + 16 * 2 + 18 + 20) * s;
+cardH = FzMx(cardMin, h - ry - 0);
+ry += cardH + 20 * s;
 
-    // Card 示例（堆叠放置）
-    for (int i = 0; i < (int)cards.size(); i++) {
-        cards[i].x = cardX;
-        cards[i].y = ry + i * (80 * s + 12 * s);
-        cards[i].w = cardW;
-        cards[i].h = 80 * s;
-        ry = cards[i].y + cards[i].h + 12 * s;
-    }
+// Profile卡
+gR5Y = ry;  ry += 16 * s + 10 * s;
+cards[0].x = colRX; cards[0].y = ry; cards[0].w = colW;
+cards[0].h = 80 * s;
+ry += cards[0].h + 20 * s;
+
+// Account卡
+cards[1].x = colRX; cards[1].y = ry; cards[1].w = colW;
+cards[1].h = 80 * s;
 }
 }
 
@@ -132,13 +135,14 @@ void HomePage::Draw(App& app) {
     ID2D1HwndRenderTarget* rt = app.rt.Get();
     if (!rt) return;
 
-    // 分组标题
+    // 固定标题
     app.DrawText(L"BUTTONS",   colLX, gL1Y, colW, L"Segoe UI", 11 * s, (DWRITE_FONT_WEIGHT)600, th.text2);
     app.DrawText(L"SELECTION", colLX, gL2Y, colW, L"Segoe UI", 11 * s, (DWRITE_FONT_WEIGHT)600, th.text2);
     app.DrawText(L"PROGRESS",  colRX, gR1Y, colW, L"Segoe UI", 11 * s, (DWRITE_FONT_WEIGHT)600, th.text2);
     app.DrawText(L"SLIDERS",   colRX, gR2Y, colW, L"Segoe UI", 11 * s, (DWRITE_FONT_WEIGHT)600, th.text2);
     app.DrawText(L"RATING",    colRX, gR3Y, colW, L"Segoe UI", 11 * s, (DWRITE_FONT_WEIGHT)600, th.text2);
     app.DrawText(L"INFO",      colRX, gR4Y, colW, L"Segoe UI", 11 * s, (DWRITE_FONT_WEIGHT)600, th.text2);
+    app.DrawText(L"PROFILE",   colRX, gR5Y, colW, L"Segoe UI", 11 * s, (DWRITE_FONT_WEIGHT)600, th.text2);
 
     // 左栏控件
     for (auto& b : buttons)   DrawButton(app, b, th, s);
@@ -151,10 +155,9 @@ void HomePage::Draw(App& app) {
     for (auto& sl : sliders)      DrawSlider(app, sl, th, s);
     for (auto& rtg : ratings)     DrawRatingControl(app, rtg, th, s);
 
-    // 独立 Card 控件
-    for (auto& c : cards) DrawCardWidget(app, c, th, s);
-
-    DrawCard(app);
+    // Card 控件（Info + Profile）
+    DrawCard(app);   // INFO卡
+    for (int i = 0; i < (int)cards.size(); i++) DrawCardWidget(app, cards[i], th, s);  // Profile + Account
 }
 
 void HomePage::DrawCard(App& app) {
