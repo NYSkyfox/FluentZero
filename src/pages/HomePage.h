@@ -42,21 +42,13 @@ public:
     std::vector<RatingControl> ratings;   // 单一样式
     std::vector<Card> cards;             // 卡片示例
 
-    // 供 App 读取（Info 卡的 "Primary clicks"）
+    // 供 App 读取（Primary clicks）
     int primaryClicks = 0;
     int radioSelected = 0;   // RadioButton 组内互斥（默认选 0）
-
-private:
-    // Info 卡
-    static const int kDetailRows = 6;
-    std::wstring detailLabel[kDetailRows], detailValue[kDetailRows];
-    void RebuildDetail(App& app, const std::wstring& pageTitle);
-    void DrawCard(App& app);
 
     // 布局坐标
     float contentX = 0, colLX = 0, colRX = 0, colW = 0;
     float gL1Y = 0, gL2Y = 0, gR1Y = 0, gR2Y = 0, gR3Y = 0, gR4Y = 0, gR5Y = 0;
-    float cardX = 0, cardY = 0, cardW = 0, cardH = 0;
     int sliderDragIndex = -1;
 };
 

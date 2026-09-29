@@ -20,11 +20,11 @@ HomePage::HomePage() {
     checkboxes.push_back({ L"Sounds",     true,  0, 0, 0, 0, 0, 0, 0, false, false });
     // RadioButton 两态：选中 / 未选中
     radios.push_back({ L"Light", true,  0, 0, 0, 0, 0, false, false });
-    radios.push_back({ L"Dark",  false, 0, 0, 0, 0, 0, false, false });
+    radios.push_back({ L"Dark",  false,  0, 0, 0, 0, 0, false, false });
     // ToggleSwitch 三态：On / Off / Disabled
     toggles.push_back({ L"Notifications",   true,  0, 0, 0, 0, 0, 0, false, false });
-    toggles.push_back({ L"Do not disturb",  false, 0, 0, 0, 0, 0, 0, false, false });
-    toggles.push_back({ L"Airplane mode",   false, 0, 0, 0, 0, 0, 0, false, false, true });
+    toggles.push_back({ L"Do not disturb",  false,  0, 0, 0, 0, 0, 0, false, false });
+    toggles.push_back({ L"Airplane mode",   false,  0, 0, 0, 0, 0, 0, false, false, true });
     // ProgressBar / ProgressRing / Slider / Rating：各单一样式
     progressBars.push_back({ L"Syncing...", 0.6f, 0, 0, 0, 0, true });
     progressRings.push_back({ L"Loading...", 0.4f, 0, 0, 0, 0, true });
@@ -83,7 +83,7 @@ void HomePage::Layout(App& app, const PageRegion& r) {
         }
     }
 
-    // ===== 右栏：Progress / Sliders / Rating / Info =====
+    // ===== 右栏：Progress / Sliders / Rating / Cards =====
     {
         float ry = y0;
         gR1Y = ry;  ry += 16 * s + 10 * s;
@@ -111,22 +111,16 @@ void HomePage::Layout(App& app, const PageRegion& r) {
             }
         }
         gR4Y = ry;  ry += 16 * s + 10 * s;
-// INFO卡
-cardX = colRX; cardY = ry; cardW = colW;
-const float cardMin = (kDetailRows * 24 + 16 * 2 + 18 + 20) * s;
-cardH = FzMx(cardMin, h - ry - 0);
-ry += cardH + 20 * s;
+        // Profile卡
+        gR5Y = ry;  ry += 16 * s + 10 * s;
+        cards[0].x = colRX; cards[0].y = ry; cards[0].w = colW;
+        cards[0].h = 80 * s;
+        ry += cards[0].h + 20 * s;
 
-// Profile卡
-gR5Y = ry;  ry += 16 * s + 10 * s;
-cards[0].x = colRX; cards[0].y = ry; cards[0].w = colW;
-cards[0].h = 80 * s;
-ry += cards[0].h + 20 * s;
-
-// Account卡
-cards[1].x = colRX; cards[1].y = ry; cards[1].w = colW;
-cards[1].h = 80 * s;
-}
+        // Account卡
+        cards[1].x = colRX; cards[1].y = ry; cards[1].w = colW;
+        cards[1].h = 80 * s;
+    }
 }
 
 void HomePage::Draw(App& app) {
@@ -141,7 +135,6 @@ void HomePage::Draw(App& app) {
     app.DrawText(L"PROGRESS",  colRX, gR1Y, colW, L"Segoe UI", 11 * s, (DWRITE_FONT_WEIGHT)600, th.text2);
     app.DrawText(L"SLIDERS",   colRX, gR2Y, colW, L"Segoe UI", 11 * s, (DWRITE_FONT_WEIGHT)600, th.text2);
     app.DrawText(L"RATING",    colRX, gR3Y, colW, L"Segoe UI", 11 * s, (DWRITE_FONT_WEIGHT)600, th.text2);
-    app.DrawText(L"INFO",      colRX, gR4Y, colW, L"Segoe UI", 11 * s, (DWRITE_FONT_WEIGHT)600, th.text2);
     app.DrawText(L"PROFILE",   colRX, gR5Y, colW, L"Segoe UI", 11 * s, (DWRITE_FONT_WEIGHT)600, th.text2);
 
     // 左栏控件
@@ -155,64 +148,8 @@ void HomePage::Draw(App& app) {
     for (auto& sl : sliders)      DrawSlider(app, sl, th, s);
     for (auto& rtg : ratings)     DrawRatingControl(app, rtg, th, s);
 
-    // Card 控件（Info + Profile）
-    DrawCard(app);   // INFO卡
-    for (int i = 0; i < (int)cards.size(); i++) DrawCardWidget(app, cards[i], th, s);  // Profile + Account
-}
-
-void HomePage::DrawCard(App& app) {
-    const FluentTheme& th = app.th;
-    float s = app.dpiScale;
-    ID2D1HwndRenderTarget* rt = app.rt.Get();
-    if (!rt) return;
-
-    rt->FillRoundedRectangle(
-        FzRR(cardX, cardY, cardX + cardW, cardY + cardH, 6 * s),
-        app.MakeBrush(th.card).Get());
-    rt->DrawRoundedRectangle(
-        FzRR(cardX + 0.5f, cardY + 0.5f, cardX + cardW - 0.5f, cardY + cardH - 0.5f, 6 * s),
-        app.MakeBrush(th.cardBorder).Get(), 1);
-
-    const float pad = 16 * s;
-    const float lineH = 24 * s, capH = 3 * s;
-    const float blockH = kDetailRows * lineH;
-    // 顶部对齐（不强制垂直居中）
-    float blockTop = cardY + pad;
-    // 双列固定 X 网格：标签列 / 值列（左对齐，无强调色色块）
-    float lx = cardX + pad;
-    float labelW = 132 * s;
-    float colW2 = Fzmn(140 * s, cardX + cardW - pad - (lx + labelW));
-    float vx = lx + labelW + 8 * s;
-    for (int i = 0; i < kDetailRows; i++) {
-        float ty = blockTop + i * lineH + (lineH - capH) * 0.5f;
-        app.DrawText(detailLabel[i], lx, ty, labelW, L"Segoe UI", 13 * s,
-                     DWRITE_FONT_WEIGHT_NORMAL, th.text2);
-        app.DrawText(detailValue[i], vx, ty, colW2, L"Consolas", 13 * s,
-                     DWRITE_FONT_WEIGHT_NORMAL, th.text1);
-    }
-    // 底部技术注脚
-    app.DrawText(L"Reveal hover 150ms | Segoe MDL2 | Acrylic",
-                 cardX + pad, cardY + cardH - pad - capH, cardW - 2 * pad, L"Segoe UI", 12 * s,
-                 DWRITE_FONT_WEIGHT_NORMAL, th.text2);
-}
-
-void HomePage::RebuildDetail(App& app, const std::wstring& /*pageTitle*/) {
-    RECT rc; GetClientRect(app.hwnd, &rc);
-    const int cw = rc.right - rc.left, chh = rc.bottom - rc.top;
-    const int dpiPct = (int)(app.dpiScale * 100.0f + 0.5f);
-    detailLabel[0] = L"System theme";
-    detailValue[0] = app.th.light ? L"Light" : L"Dark";
-    detailLabel[1] = L"Accent color";
-    detailValue[1] = HexOf(app.th.accent);
-    detailLabel[2] = L"DPI scale";
-    detailValue[2] = std::to_wstring(dpiPct) + L"% (" +
-                     std::to_wstring((int)(app.dpiScale * 96.0f + 0.5f)) + L" DPI)";
-    detailLabel[3] = L"Client size";
-    detailValue[3] = std::to_wstring(cw) + L" x " + std::to_wstring(chh) + L" px";
-    detailLabel[4] = L"Current page";
-    detailValue[4] = Title();
-    detailLabel[5] = L"Primary clicks";
-    detailValue[5] = std::to_wstring(primaryClicks);
+    // Card 控件
+    for (int i = 0; i < (int)cards.size(); i++) DrawCardWidget(app, cards[i], th, s);
 }
 
 void HomePage::OnMove(App& app, float x, float y) {
@@ -256,7 +193,7 @@ void HomePage::OnLButtonUp(App& app, float x, float y) {
         Button& b = buttons[i];
         if (b.pressed) {
             b.pressed = false;
-            if (i == hit && b.primary) { primaryClicks++; RebuildDetail(app, Title()); }
+            if (i == hit && b.primary) { primaryClicks++; }
         }
     }
     int ch = HitCheckBox(checkboxes, x, y);
@@ -305,14 +242,6 @@ bool HomePage::Update(App& app, float dt) {
     }
     for (auto& sl : sliders) if (UpdateSlider(sl, dt)) anim = true;
     return anim;
-}
-
-void HomePage::OnResize(App& app) {
-    RebuildDetail(app, Title());   // 刷新 Client size
-}
-
-void HomePage::OnThemeChanged(App& app) {
-    RebuildDetail(app, Title());   // 刷新 System theme / Accent
 }
 
 } // namespace fz
