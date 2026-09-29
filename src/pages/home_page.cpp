@@ -244,4 +244,12 @@ bool HomePage::Update(App& app, float dt) {
     return anim;
 }
 
+void HomePage::OnResize(App& app) {
+    (void)app;
+}
+
+void HomePage::OnThemeChanged(App& app) {
+    (void)app;
+}
+
 } // namespace fz
